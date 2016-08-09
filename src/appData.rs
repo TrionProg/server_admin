@@ -1,19 +1,37 @@
 use std::thread;
-use std::sync::{Mutex,RwLock,Arc,Barrier};
+use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
 
+use log::Log;
 use serverConfig::ServerConfig;
+
+use modManager::ModManager;
+use webInterface::WebInterface;
+
 use iron::Listening;
 
 pub struct AppData{
+    pub log:Log,
     pub serverConfig:ServerConfig,
-    pub webInterfaceListener:Mutex<Option< Listening >>,
+
+    pub modManager:RwLock<Option< Arc<ModManager> >>,
+    pub webInterface:RwLock<Option< Arc<WebInterface> >>,
 }
 
 impl AppData{
-    pub fn new( serverConfig:ServerConfig ) -> AppData {
+    pub fn new( serverConfig:ServerConfig, log:Log ) -> AppData {
         AppData{
+            log:log,
             serverConfig:serverConfig,
-            webInterfaceListener:Mutex::new(None),
+
+            modManager:RwLock::new(None),
+            webInterface:RwLock::new(None),
+        }
+    }
+
+    pub fn exit( &self ){
+        match *self.webInterface.read().unwrap(){
+            Some( ref wi ) => wi.close(),
+            None=>{},
         }
     }
 }

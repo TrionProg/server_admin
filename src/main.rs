@@ -1,11 +1,19 @@
+#![allow(non_snake_case)]
+
 extern crate rustc_serialize;
 extern crate iron;
 extern crate router;
+extern crate curl;
+extern crate zip;
 
+mod log;
 mod serverConfig;
 mod appData;
-//mod consoleInterface;
+mod modManager;
+
+mod consoleInterface;
 mod webInterface;
+mod commandProcessor;
 
 
 
@@ -14,41 +22,66 @@ use std::error::Error;
 use std::thread;
 use std::sync::{Mutex,RwLock,Arc,Barrier};
 
+use log::Log;
 use serverConfig::ServerConfig;
 use appData::AppData;
+use modManager::ModManager;
+use webInterface::WebInterface;
 
 fn main(){
+    //===================Log===========================
+    let log=match Log::new(){
+        Ok( l ) => l,
+        Err( msg )=>{
+            println!( "[ERROR]Can not create log: {}", msg);
+            return;
+        },
+    };
+
     //===================ServerConfig==================
 
     let serverConfig=match ServerConfig::read(){
         Ok( sc )=>{
-            println!("[INFO]Server configurations are loaded");
+            log.print(format!("[INFO]Server configurations are loaded"));
             sc
         },
         Err( msg )=>{
-            println!("[ERROR]Can not read server configurations: {}", msg);
+            log.print(format!("[ERROR]Can not read server configurations: {}", msg));
             return;
         },
     };
 
     //===================AppData======================
-    let appData=Arc::new( AppData::new(serverConfig) );
+    let appData=Arc::new( AppData::new(serverConfig, log) );
 
     //===================ScanningMods=================
-    println!("[INFO]Scanning existing mods");
-    //read modulesToCompile
+    appData.log.print(format!("[INFO]Scanning existing mods"));
 
-    //===================WebInterface=================
-    println!("[INFO]Starting web interface");
-
-    match webInterface::run( appData.clone() ) {
-        Ok( _ ) => println!("[INFO]Web interface is ready, connect to localhost:{} by your browser",appData.serverConfig.server_adminPort),
-        Err( e ) => {
-            panic!("[ERROR]Can not run web server on port {} : {}", appData.serverConfig.server_adminPort, e.description());
+    match ModManager::initialize( appData.clone() ){
+        Ok( _ ) => appData.log.print(format!("[INFO]Existing mods are scanned")),
+        Err( msg ) => {
+            appData.log.print(format!("[ERROR]Can not scan mods : {}", msg ));
             return;
         },
     }
 
+    //===================WebInterface=================
+    appData.log.print(format!("[INFO]Starting web interface"));
+
+    match WebInterface::run( appData.clone() ) {
+        Ok( _ ) => appData.log.print(format!("[INFO]Web interface is ready, connect to localhost:{} by your browser",appData.serverConfig.server_adminPort)),
+        Err( e ) => {
+            appData.log.print(format!("[ERROR]Can not run web server on port {} : {}", appData.serverConfig.server_adminPort, e.description()));
+            return;
+        },
+    }
+
+    //===================ConsoleInterface============
+    consoleInterface::readInput( appData.clone() );
+
+    //===================Exit========================
+
+    appData.exit();
 
 }
 
