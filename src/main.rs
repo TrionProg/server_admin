@@ -7,8 +7,10 @@ extern crate curl;
 extern crate zip;
 
 mod log;
+mod config;
 mod serverConfig;
 mod appData;
+mod version;
 mod modManager;
 
 mod consoleInterface;
@@ -82,7 +84,6 @@ fn main(){
     //===================Exit========================
 
     appData.exit();
-
 }
 
 /*

@@ -7,6 +7,8 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
+use config;
+
 #[derive(RustcDecodable, RustcEncodable)]
 pub struct ServerConfig{
     pub server_adminPort:u16,
@@ -15,6 +17,24 @@ pub struct ServerConfig{
 
 impl ServerConfig{
     pub fn read() -> Result<ServerConfig, String> {
+        /*
+        let s=String::from("\"server_adminPort\":\"1945\",\"server_gamePort\":\"1941\"");
+
+        let config:ServerConfig=try!(config::parse( &s, |root| {
+            //let server_adminPort=try!(root.getAs::<u16>("server.adminPort"));
+
+            //let server_adminPort=try!(root.getAs::<u16>("server.adminPort"));
+
+
+            Ok(
+                ServerConfig{
+                    server_adminPort:try!(root.getAs::<u16>("server.adminPort")),
+                    server_gamePort:try!(root.getAs::<u16>("server.gamePort")),
+                }
+            )
+        }));
+        */
+
         //let a= ServerConfig{server_adminPort:1945, server_gamePort:1941};
         //println!("{}",json::encode(&a).unwrap());
 
@@ -29,9 +49,16 @@ impl ServerConfig{
             Err( e ) => return Err(format!("Can not read file \"serverConfig.cfg\" : {}", e.description())),
         }
 
-        let serverConfig: ServerConfig = match json::decode(&content){
+        let serverConfig: ServerConfig = match config::parse( &content, |root| {
+            Ok(
+                ServerConfig{
+                    server_adminPort:try!(root.getAs::<u16>("server.adminPort")),
+                    server_gamePort:try!(root.getAs::<u16>("server.gamePort")),
+                }
+            )
+        }){
             Ok( sc ) => sc,
-            Err( e ) => return Err(format!("Can not parse file \"serverConfig.cfg\" : {}", e.description())),
+            Err( e ) => return Err(format!("Can not parse file \"serverConfig.cfg\" : {}", e)),
         };
 
         Ok(serverConfig)

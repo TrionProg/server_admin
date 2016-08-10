@@ -4,13 +4,5 @@
 [INFO]Existing mods are scanned
 [INFO]Starting web interface
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
-[ERROR]Unknown command: "hh" 
-hh
-[ERROR]Unknown command: "lol" 
-lol
-[ERROR]Unknown command: "dfdsf" 
-dfdsf
-[ERROR]Can not use string "run" as command
-"run"
 [INFO]Closing web interface
 [INFO]Web interface is closed
