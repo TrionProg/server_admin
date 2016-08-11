@@ -34,4 +34,15 @@ impl AppData{
             None=>{},
         }
     }
+
+    /*
+    pub fn getModManager( &self ) -> &ModManager {
+        match *self.modManager.read().unwrap(){
+            Some( ref modManager) => {
+                modManager
+            },
+            None=>panic!("No mod manager"),
+        }
+    }
+    */
 }

@@ -56,7 +56,7 @@ fn main(){
     //===================AppData======================
     let appData=Arc::new( AppData::new(serverConfig, log) );
 
-    //===================ScanningMods=================
+    //===================ScanMods=================
     appData.log.print(format!("[INFO]Scanning existing mods"));
 
     match ModManager::initialize( appData.clone() ){
@@ -65,6 +65,24 @@ fn main(){
             appData.log.print(format!("[ERROR]Can not scan mods : {}", msg ));
             return;
         },
+    }
+
+    //===================checkAndActivateMods=================
+    appData.log.print(format!("[INFO]Activating mods"));
+
+    //appData.getModManager().checkAndActivate();
+
+    match *appData.modManager.read().unwrap(){
+        Some( ref modManager) => {
+            match modManager.checkAndActivate( ){
+                Ok( _ ) => appData.log.print(format!("[INFO]Mods have been checked and activated")),
+                Err( msg ) => {
+                    appData.log.print(format!("[ERROR]Can not check mods : {}", msg ));
+                    return;
+                },
+            }
+        },
+        None=>{},
     }
 
     //===================WebInterface=================

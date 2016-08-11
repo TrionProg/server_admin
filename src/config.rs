@@ -4,17 +4,236 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry::{Occupied, Vacant};
 
 use std::str::FromStr;
+use std::slice::Iter;
 
 pub enum ParameterValue {
-    String(String),
-    List(Vec<ParameterValue>),
-    Map(BTreeMap<String, ParameterValue>),
+    String{line:usize, value:String},
+    List(List),
+    Map(Map),
 }
 
-enum ParameterClass{
-    String,
-    List,
-    Map,
+impl ParameterValue {
+    pub fn getString<'a>( &'a self ) -> Result<&'a String,String>{
+        match *self {
+            ParameterValue::String{ line, ref value } =>
+                Ok(value),
+            ParameterValue::Map( ref map ) =>
+                Err(format!("Line {} : Parameter is not string", map.line)),
+            ParameterValue::List( ref list ) =>
+                Err(format!("Line {} : Parameter is not string", list.line)),
+        }
+    }
+
+    pub fn getMap<'a>( &'a self ) -> Result<&'a Map,String>{
+        match *self {
+            ParameterValue::String{ line, ref value } =>
+                Err(format!("Line {} : Parameter is not map", line)),
+            ParameterValue::Map( ref map ) =>
+                Ok( map ),
+            ParameterValue::List( ref list ) =>
+                Err(format!("Line {} : Parameter is not map", list.line)),
+        }
+    }
+
+    pub fn getList<'a>( &'a self ) -> Result<&'a List,String>{
+        match *self {
+            ParameterValue::String{ line, ref value } =>
+                Err(format!("Line {} : Parameter is not list", line)),
+            ParameterValue::Map( ref map ) =>
+                Err(format!("Line {} : Parameter is not list", map.line)),
+            ParameterValue::List( ref list ) =>
+                Ok( list ),
+        }
+    }
+}
+
+pub struct Map{
+    line:usize,
+    params:BTreeMap<String, ParameterValue>,
+}
+
+impl Map {
+    fn parse( cur:&mut TextCursor, endsWith:char, mapLine:usize ) -> Result<Map, String>{
+        let mut params=BTreeMap::new();
+
+        loop {
+            match try!(Lexeme::next( cur )) {
+                Lexeme::String( paramName ) => {
+                    let line=cur.line;
+
+                    if try!(Lexeme::next( cur )) != Lexeme::Set {
+                        return Err( format!("Line {} : Expected : or =", line ));
+                    }
+
+                    let paramValue=match try!(Lexeme::next( cur )) {
+                        Lexeme::Bracket( '{') =>
+                            ParameterValue::Map( try!(Map::parse( cur, '}', line )) ),
+                        Lexeme::Bracket( '[') =>
+                            ParameterValue::List( try!(List::parse( cur, line )) ),
+                        Lexeme::String( s ) =>
+                            ParameterValue::String{line:line, value:s },
+                        Lexeme::NewLine | Lexeme::Comma | Lexeme::EOF | Lexeme::Bracket('}') =>
+                            return Err(format!("Line {} : Value of parameter has been missed",line)),
+                        _=>
+                            return Err(format!("Line {} : Expected string(\"..\"), list([...]), map(_.._)",line)),
+                    };
+
+                    match params.entry( paramName ) {
+                        Vacant( entry ) => {entry.insert( paramValue );},
+                        Occupied( e ) => return Err(format!("Line {} : Parameter has been declarated before", line)),
+                    }
+
+                    match try!(Lexeme::next( cur )){
+                        Lexeme::EOF => {
+                            if endsWith!='\0' {
+                                return Err(format!("Line {} : Expected _, but EOF was found",line));
+                            }
+
+                            break;
+                        },
+                        Lexeme::Bracket('}') => {
+                            if endsWith!='}' {
+                                return Err(format!("Line {} : Expected EOF, but _ was found",line));
+                            }
+
+                            break;
+                        },
+                        Lexeme::NewLine | Lexeme::Comma => {},
+                        _=>return Err(format!("Line {} : Expected new line or , or {}", line, endsWith)),
+                    }
+                },
+                Lexeme::NewLine => {},
+                Lexeme::EOF => break,
+                _=>return Err(format!("Line {} : Expected parameter name",cur.line)),
+            }
+        }
+
+        Ok(
+            Map{
+                line:mapLine,
+                params:params,
+            }
+        )
+    }
+
+    pub fn getMap<'a>( &'a self, name:&'a str ) -> Result<&'a Map,String>{
+        match self.params.get( name ){
+            Some( pv ) => {
+                match *pv {
+                    ParameterValue::String{ line, ref value } =>
+                        Err(format!("Line {} : Parameter \"{}\" is not map", line, name)),
+                    ParameterValue::Map( ref map ) =>
+                        Ok( map ),
+                    ParameterValue::List( ref list ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not map", list.line, name)),
+                }
+            },
+            None=>Err(format!("Line {} : Map has no parameter \"{}\"", self.line,name)),
+        }
+    }
+
+    pub fn getList<'a>( &'a self, name:&'a str ) -> Result<&'a List,String>{
+        match self.params.get( name ){
+            Some( pv ) => {
+                match *pv {
+                    ParameterValue::String{ line, ref value } =>
+                        Err(format!("Line {} : Parameter \"{}\" is not list", line, name)),
+                    ParameterValue::Map( ref map ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not list", map.line, name)),
+                    ParameterValue::List( ref list ) =>
+                        Ok( list ),
+                }
+            },
+            None=>Err(format!("Line {} : Map has no parameter \"{}\"", self.line,name)),
+        }
+    }
+
+    pub fn getString<'a>( &'a self, name:&'a str ) -> Result<&'a String,String>{
+        match self.params.get( name ){
+            Some( pv ) => {
+                match *pv {
+                    ParameterValue::String{ line, ref value } =>
+                        Ok(value),
+                    ParameterValue::Map( ref map ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not string", map.line, name)),
+                    ParameterValue::List( ref list ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not string", list.line, name)),
+                }
+            },
+            None=>Err(format!("Line {} : Map has no parameter \"{}\"", self.line, name)),
+        }
+    }
+
+    pub fn getStringAs<'a,T>( &'a self, name:&'a str ) -> Result<T,String> where T: FromStr{
+        match self.params.get( name ){
+            Some( pv ) => {
+                match *pv {
+                    ParameterValue::String{ line, ref value } =>{
+                        match value.parse::<T>() {
+                            Ok( p ) => Ok( p ),
+                            Err( e )=>Err( format!("Line {} : Can not parse parameter \"{}\"",line,  name)),
+                        }
+                    },
+                    ParameterValue::Map( ref map ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not string", map.line, name)),
+                    ParameterValue::List( ref list ) =>
+                        Err(format!("Line {} : Parameter \"{}\" is not string", list.line, name)),
+                }
+            },
+            None=>Err(format!("Line {} : Map has no parameter \"{}\"", self.line, name)),
+        }
+    }
+}
+
+pub struct List{
+    line:usize,
+    elements:Vec<ParameterValue>,
+}
+
+impl List{
+    fn parse( cur:& mut TextCursor, listLine: usize ) -> Result<List, String>{
+        let mut elements=Vec::new();
+
+        loop{
+            let line=cur.line;
+
+            let elem=match try!(Lexeme::next( cur )) {
+                Lexeme::Bracket( '{') =>
+                    ParameterValue::Map( try!(Map::parse( cur, '}', line )) ),
+                Lexeme::Bracket( '[') =>
+                    ParameterValue::List( try!(List::parse( cur, line )) ),
+                Lexeme::String( s ) =>
+                    ParameterValue::String{line:line, value:s },
+                Lexeme::Bracket(']') =>
+                    break,
+                Lexeme::NewLine | Lexeme::Comma =>
+                    return Err(format!("Line {} : Parameter has been missed",line)),
+                _=>
+                    return Err( format!("Line {} : Expected string(\"..\"), list([...]), map(_.._)",line)),
+            };
+
+            elements.push(elem);
+
+            match try!(Lexeme::next( cur )){
+                Lexeme::Bracket(']') =>
+                    break,
+                Lexeme::NewLine | Lexeme::Comma => {},
+                _=>return Err(format!("Line {} : Expected new line or , ]",cur.line)),
+            }
+        }
+
+        Ok( List{
+                line:listLine,
+                elements:elements,
+            }
+        )
+    }
+
+    pub fn iter<'a>( &'a self ) -> Iter<'a,ParameterValue> {
+        self.elements.iter()
+    }
+
+
 }
 
 struct TextCursor<'a>{
@@ -22,16 +241,18 @@ struct TextCursor<'a>{
     it:Chars<'a>,
     pos:usize,
     lineBegin:usize,
+    line:usize,
     ch:char,
 }
 
 impl<'a> TextCursor<'a>{
-    fn new(text:& String) -> TextCursor{
+    fn new(text:&'a String) -> TextCursor<'a>{
         TextCursor{
             text:text,
             it:text.chars(),
             pos:0,
             lineBegin:0,
+            line:1,
             ch:'\0',
         }
     }
@@ -42,6 +263,7 @@ impl<'a> TextCursor<'a>{
             Some(ch)=>{
                 if ch=='\n' {
                     self.lineBegin=self.pos;
+                    self.line+=1;
                 }
 
                 self.pos+=1;
@@ -52,15 +274,15 @@ impl<'a> TextCursor<'a>{
 
         self.ch
     }
+}
 
-    fn getLine( &self ) -> String{
-        let mut line=String::with_capacity(80);
-        for ch in self.text.chars().skip(self.lineBegin).take_while(|c| *c!='\n' && *c!='\0') {
-            line.push( ch );
-        }
-
-        line
+fn getLine( text:&String, lineBegin:usize ) -> String{
+    let mut line=String::with_capacity(80);
+    for ch in text.chars().skip(lineBegin).take_while(|c| *c!='\n' && *c!='\0') {
+        line.push( ch );
     }
+
+    line
 }
 
 #[derive(PartialEq, PartialOrd)]
@@ -82,7 +304,7 @@ impl Lexeme {
                 cur.next();
             }else if cur.ch=='/' {
                 if cur.next()!='/' {
-                    return Err(format!("Comment must begin with \"//\"\n{}",cur.getLine()));
+                    return Err(format!("Line {} : Comment must begin with \"//\"",cur.line));
                 }
 
                 while cur.ch!='\n' {
@@ -108,7 +330,7 @@ impl Lexeme {
                     let ch=cur.next();
 
                     if ch=='\0' {
-                        return Err(format!("Expected \"{}\" at the end of string \"{}\"\n{}",beginChar,string,cur.getLine()));
+                        return Err(format!("Line {} : Expected \"{}\" at the end of string \"{}\"", cur.line, beginChar, string));
                     }else if isShielding {
                         match ch {
                             '"'=>string.push('"'),
@@ -130,7 +352,7 @@ impl Lexeme {
                                 string.push(ch);
                             },
                             '\\'=>isShielding=true,
-                            '\n'=>return Err(format!("Expected \"{}\" at the end of \"{}\"\n{}",beginChar,string,cur.getLine())),
+                            '\n'=>return Err(format!("Line {} : Expected \"{}\" at the end of \"{}\"", cur.line, beginChar, string)),
                             _=>string.push(ch),
                         }
                     }
@@ -138,143 +360,12 @@ impl Lexeme {
 
                 Ok( Lexeme::String(string) )
             },
-            _=>return Err(format!("You must write all strings in \"\"\n{}",cur.getLine())),
+            _=>return Err(format!("Line {} : You must write all strings in \"\"", cur.line)),
         }
     }
 }
 
-impl ParameterValue{
-    fn parse( cur:&mut TextCursor, paramClass:ParameterClass, endsWith:char ) -> Result<ParameterValue, String>{
-        match paramClass {
-            ParameterClass::Map => {
-                let mut params=BTreeMap::new();
-
-                loop {
-                    match try!(Lexeme::next( cur )) {
-                        Lexeme::String( paramName ) => {
-                            if try!(Lexeme::next( cur )) != Lexeme::Set {
-                                return Err( format!("Expected : or =\n{}",cur.getLine()));
-                            }
-
-                            let paramValue=match try!(Lexeme::next( cur )) {
-                                Lexeme::Bracket( '{') =>
-                                    try!(ParameterValue::parse( cur, ParameterClass::Map, '}' )),
-                                Lexeme::Bracket( '[') =>
-                                    try!(ParameterValue::parse( cur, ParameterClass::List,']' )),
-                                Lexeme::String( s ) =>
-                                    ParameterValue::String( s ),
-                                Lexeme::NewLine | Lexeme::Comma | Lexeme::EOF | Lexeme::Bracket('}') =>
-                                    return Err(format!("Value of parameter has been missed\n{}",cur.getLine())),
-                                _=>
-                                    return Err( format!("Expected string(\"..\"), list([...]), map(_.._)\n{}",cur.getLine())),
-                            };
-
-                            match params.entry( paramName ) {
-                                Vacant( entry ) => {entry.insert( paramValue );},
-                                Occupied( e ) => return Err(format!("Parameter has been declarated before\"{}", cur.getLine())),
-                            }
-
-                            match try!(Lexeme::next( cur )){
-                                Lexeme::EOF => {
-                                    if endsWith!='\0' {
-                                        return Err(format!("Expected _, but EOF was found\n{}",cur.getLine()));
-                                    }
-
-                                    break;
-                                },
-                                Lexeme::Bracket('}') => {
-                                    if endsWith!='}' {
-                                        return Err(format!("Expected EOF, but _ was found\n{}",cur.getLine()));
-                                    }
-
-                                    break;
-                                },
-                                Lexeme::NewLine | Lexeme::Comma => {},
-                                _=>return Err(format!("Expected new line or , or {}\n{}",endsWith,cur.getLine())),
-                            }
-                        },
-                        Lexeme::NewLine => {},
-                        Lexeme::EOF => break,
-                        _=>return Err(format!("Expected parameter name\n{}",cur.getLine())),
-                    }
-                }
-
-                Ok(ParameterValue::Map(params))
-            },
-            ParameterClass::List => {
-                let mut elements=Vec::new();
-
-                loop{
-                    let elem=match try!(Lexeme::next( cur )) {
-                        Lexeme::Bracket( '{') =>
-                            try!(ParameterValue::parse( cur, ParameterClass::Map, '}' )),
-                        Lexeme::Bracket( '[') =>
-                            try!(ParameterValue::parse( cur, ParameterClass::List,']' )),
-                        Lexeme::String( s ) =>
-                            ParameterValue::String( s ),
-                        Lexeme::NewLine | Lexeme::Comma | Lexeme::Bracket(']') =>
-                            return Err(format!("Parameter has been missed\n{}",cur.getLine())),
-                        _=>
-                            return Err( format!("Expected string(\"..\"), list([...]), map(_.._)\n{}",cur.getLine())),
-                    };
-
-                    match try!(Lexeme::next( cur )){
-                        Lexeme::Bracket(']') =>
-                            break,
-                        Lexeme::NewLine | Lexeme::Comma => {},
-                        _=>return Err(format!("Expected new line or , or {}\n{}",endsWith,cur.getLine())),
-                    }
-                }
-
-                Ok( ParameterValue::List(elements))
-            },
-            ParameterClass::String => panic!("Can not parse string separatelly"),
-        }
-    }
-
-    /*
-
-    pub fn findByName<'a>(&'a self, name:String) -> Option<&'a ParameterValue> {
-        match *self{
-            ParameterValue::Map( ref map ) =>
-                map.get(name),
-            _=>None,
-        }
-    }
-
-    pub fn getParameter<'a>(&'a self, name:&'a str) -> Result<Parameter<'a>,String>{
-        match *self{
-            ParameterValue::Map( ref map ) =>{
-                match map.get(name) {
-                    Some( ref pv ) => return Parameter{ name:name, value:pv },
-                    None => return Err(format!("Parameter {} does not exists"))
-                }
-            },
-            _=>return Err(format!("Not a map")),
-        }
-    }
-
-    */
-
-    /*
-    fn getMap(& self) -> Result<Map,String>{
-        match *self{
-            ParameterValue::Map( ref params )=>
-                Ok(Map{name:"root", params:params} ),
-            _=>Err(format!("Not a map")),
-        }
-    }
-    */
-
-    fn getMap( &self) -> Map{
-        match *self{
-            ParameterValue::Map( ref params )=>
-                Map{name:"root", params:params},
-            _=>panic!("Not a map"),
-        }
-    }
-}
-
+/*
 pub struct Map<'a>{
     name:&'a str,
     params:&'a BTreeMap<String, ParameterValue>,
@@ -315,12 +406,12 @@ impl <'a>Map<'a> {
         }
     }
 }
+*/
 
 pub fn parse<T,F>( text:&String, process:F) -> Result<T, String> where F:FnOnce(Map) -> Result<T, String>{
     let mut cur=TextCursor::new(text);
 
-    let pv=try!(ParameterValue::parse( &mut cur, ParameterClass::Map, '\0'));
-    let map=pv.getMap();
+    let map=try!(Map::parse( &mut cur, '\0', 0));
 
     process(map)
 }

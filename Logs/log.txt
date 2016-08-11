@@ -2,6 +2,8 @@
 [INFO]Server configurations are loaded
 [INFO]Scanning existing mods
 [INFO]Existing mods are scanned
+[INFO]Activating mods
+[INFO]Mods have been checked and activated
 [INFO]Starting web interface
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
 [INFO]Closing web interface

@@ -9,7 +9,6 @@ use std::fs::File;
 
 use config;
 
-#[derive(RustcDecodable, RustcEncodable)]
 pub struct ServerConfig{
     pub server_adminPort:u16,
     pub server_gamePort:u16,
@@ -52,8 +51,8 @@ impl ServerConfig{
         let serverConfig: ServerConfig = match config::parse( &content, |root| {
             Ok(
                 ServerConfig{
-                    server_adminPort:try!(root.getAs::<u16>("server.adminPort")),
-                    server_gamePort:try!(root.getAs::<u16>("server.gamePort")),
+                    server_adminPort:try!(root.getStringAs::<u16>("server.adminPort")),
+                    server_gamePort:try!(root.getStringAs::<u16>("server.gamePort")),
                 }
             )
         }){
