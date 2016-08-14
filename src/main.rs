@@ -18,8 +18,6 @@ mod consoleInterface;
 mod webInterface;
 mod commandProcessor;
 mod gameServer;
-mod fromGS;
-mod toGS;
 
 
 
@@ -107,6 +105,11 @@ fn main(){
     match GameServer::run( appData.clone() ) {
         Ok ( _ ) => appData.log.print(format!("[INFO]Game server has been rant")),
         Err( e ) => appData.log.print(format!("[ERROR]Can not run game server : {}", e)),
+    }
+
+    match *appData.gameServer.read().unwrap(){
+        Some( _ )=>println!("is"),
+        None=>println!("not"),
     }
 
     //===================ConsoleInterface============

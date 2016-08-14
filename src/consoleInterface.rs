@@ -12,6 +12,11 @@ pub fn readInput( appData:Arc<AppData> ){
 
         match io::stdin().read_line(&mut input) {
             Ok( _ ) => {
+                match *appData.gameServer.read().unwrap(){
+                    Some( _ )=>println!("is"),
+                    None=>println!("not"),
+                }
+
                 if input.trim()=="exit" {
                     return;
                 }else{

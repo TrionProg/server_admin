@@ -1,13 +1,12 @@
-use std::error::Error;
-
 use std::thread;
 use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
 
 use std::process::{Command, Stdio};
 
-use std::io::{Write,Read, ErrorKind};
-use nanomsg::{Socket, Protocol, Endpoint};
+use std::io::{Write,Read};
 
+use toGS::ToGS;
+use fromGS::FromGS;
 use appData::AppData;
 
 struct Channel{
@@ -61,12 +60,13 @@ impl Channel{
 
 impl Drop for Channel{
     fn drop(&mut self){
-        self.endpoint.shutdown();
+        self.endpoint.close();
+        drop(self.socket);
     }
 }
 
 
-pub struct GameServer{
+GameServer{
     appData:        Weak<AppData>,
     toGS:           Mutex<Channel>,
     fromGSFileName: String,
@@ -81,10 +81,7 @@ impl GameServer {
         let mut fromGS=try!(Channel::newPull( &fromGSFileName ));
 
 
-        match Command::new("./server_game").stdout(Stdio::null()).spawn(){
-            Ok ( _ ) => {},
-            Err( e ) => return Err( format!("Can not execute server_game : {}",e.description()) ),
-        }
+        //run
 
         let mut msg=String::new();
         fromGS.socket.set_receive_timeout(5000);
@@ -92,32 +89,32 @@ impl GameServer {
         match fromGS.socket.read_to_string(&mut msg){
             Ok( _ ) => {
                 if msg.as_str()!="answer:FromGS is ready" {
-                    return Err( format!("Can not open FromGS: {}", msg) );
+                    return Err( format!("[ERROR]Can not run game server : FromGS: {}", msg) );
                 }
             },
-            Err( e ) => return Err( format!("Can not open FromGS: {}", e.description()) ),
+            Err( e ) => return Err( format!("[ERROR]Can not run game server : FromGS: {}", e.description()) ),
         }
 
         //===========================ToGS============================
         let toGSFileName=format!("ipc:///tmp/ToGS_{}.ipc",appData.serverConfig.server_gamePort);
-        let mut toGS=try!(Channel::newPush( &toGSFileName ));
+        let mut toGS=try!(Channel::newPush( &fromGSFileName ));
 
         toGS.socket.set_send_timeout(200);
         match toGS.socket.write(b"answer:ToGS is ready"){
             Ok ( _ ) => {},
-            Err( e ) => return Err( format!("Can not open ToGS: {}", e.description()) ),
+            Err( e ) => return Err( format!("[ERROR]Can not run game server : ToGS: {}", e.description()) ),
         }
 
         let mut msg=String::new();
-        fromGS.socket.set_receive_timeout(2000);
+        fromGS.socket.set_receive_timeout(1000);
 
         match fromGS.socket.read_to_string(&mut msg){
             Ok( _ ) => {
                 if msg.as_str()!="answer:IPC is ready" {
-                    return Err( format!("Can not create IPC: {}", msg) );
+                    return Err( format!("[ERROR]Can not run game server : IPC: {}", msg) );
                 }
             },
-            Err( e ) => return Err( format!("Can not create IPC: {}", e.description()) ),
+            Err( e ) => return Err( format!("[ERROR]Can not run game server : IPC: {}", e.description()) ),
         }
 
         //===========================GameServer======================
@@ -132,9 +129,9 @@ impl GameServer {
             }
         );
 
-        *appData.gameServer.write().unwrap()=Some(gameServer.clone());
 
-        GameServer::runThread( appData.clone(), gameServer.clone(), fromGS );
+
+        let threadJoin=runThread( appData.clone(), gameServer.clone(), fromGS );
 
         Ok(())
     }
@@ -143,29 +140,20 @@ impl GameServer {
         appData:Arc<AppData>, //не даст другим потокам разрушить AppData
         gameServer:Arc<GameServer>, //не даст другим потокам разрушить GameServer
         mut fromGS:Channel
-    ) {
+    ) -> ThreadJoin {
         thread::spawn(move || {
-            let mut msg=String::with_capacity(1024);
             fromGS.socket.set_receive_timeout(1500);
 
             while !{*gameServer.shouldClose.lock().unwrap()} {
                 match fromGS.socket.read_to_string(&mut msg){
                     Ok( _ ) => {
-                        if msg.as_str()=="close:" {
+                        if msg.as_str()=="close" {
                             break;
-                        }
-
-                        let v: Vec<&str> = msg.splitn(2, ':').collect();
-
-                        if v.len()==2{
-                            GameServer::processFromGSCommand( &appData, v[0], v[1] );
-                        }else{
-                            appData.log.print( format!("[ERROR]FromGS: \"{}\" is no command", msg.as_str()) );
                         }
                     },
                     Err( e ) => {
-                        match e.kind() {
-                            ErrorKind::TimedOut =>
+                        match e {
+                            io::ErrorKind::TimedOut =>
                                 appData.log.print( format!("[ERROR]Connection with game server has been lost") ),
                             _=>
                                 appData.log.print( format!("[ERROR]FromGS read error : {}", e.description()) ),
@@ -174,48 +162,42 @@ impl GameServer {
                         break;
                     },
                 }
-                /*
-                {
+
                 let v: Vec<&str> = msg.splitn(2, ':').collect();
 
                 if v.len()==2{
-                    GameServer::processFromGSCommand( &appData, v[0], v[1] );
+                    processFromGSCommand( v[0], v[1] );
                 }else{
                     appData.log.print( format!("[ERROR]FromGS: \"{}\" is no command", msg.as_str()) );
                 }
-                }
-                */
-                msg.clear();
             }
 
             *gameServer.isRunning.lock().unwrap()=false;
 
+            println!("ThreadEnd");
+
             //Выжидает, когда gameServer-ом никто не пользуется, и делает недоступным его использование
             *appData.gameServer.write().unwrap()=None;
-            appData.log.print(format!("[INFO]Game server connection has been closed"));
+            appData.log.print(format!("[INFO]Game server has been stoped"));
             //GameServer разрушается автоматически
         });
     }
 
     fn processFromGSCommand( appData:&Arc<AppData>, commandType:&str, args:&str ){
-        match commandType {
+        match v[0] {
             //"answer" => *answer.lock().unwrap()=Some(String::from(v[1])),
             "online" => {},
-            "print" => appData.log.print( String::from(args) ),
-            _=>appData.log.print( format!("[ERROR]FromGS: unknown command\"{}\"", args) ),
+            "print" => appData.log.print( String::from(v[1]) ),
+            _=>appData.log.print( format!("[ERROR]FromGS: unknown command\"{}\"", v[0]) ),
         }
     }
 
-    fn close(&self){
+    fn closeFromGS(&self){
         *self.shouldClose.lock().unwrap()=true;
         let mut fromGSTerminator_socket = Socket::new(Protocol::Push).unwrap();
         fromGSTerminator_socket.set_send_timeout(2000);
         let mut fromGSTerminator_endpoint = fromGSTerminator_socket.connect(&self.fromGSFileName).unwrap();
-        fromGSTerminator_socket.write(b"close:").unwrap();
-
-        while {*self.isRunning.lock().unwrap()} {
-            thread::sleep_ms(100);
-        }
+        fromGSTerminator_socket.write(b"close").unwrap();
     }
 
     pub fn send(&self, commandType:&str, msg:&str ) -> Result<(),String>{
@@ -227,9 +209,9 @@ impl GameServer {
                 let errorMessage=format!("[ERROR]ToGS Write error : {}",e.description());
                 self.appData.upgrade().unwrap().log.print(errorMessage.clone());
 
-                self.close();
+                self.closeFromGS();
 
-                Err( errorMessage )
+                Err( errorMessage );
             },
         }
     }
@@ -243,65 +225,5 @@ impl GameServer {
         while {*self.isRunning.lock().unwrap()} {
             thread::sleep_ms(100);
         }
-
-        appData.log.print(format!("[INFO]Game server has been stoped"));
     }
 }
-
-
-/*
-use std::error::Error;
-
-use std::thread;
-use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
-
-use std::process::{Command, Stdio};
-
-use std::io::{Write,Read};
-use nanomsg::{Socket, Protocol, Endpoint};
-
-use appData::AppData;
-
-pub struct GameServer{
-    appData:    Weak<AppData>,
-    toGS:       ToGS,
-    fromGS:     FromGS,
-}
-
-impl GameServer{
-    pub fn run( appData:Arc<AppData> ) -> Result<(),String> {
-        //appData.log.print(format!("Running game server"))
-        let fromGS=try!(FromGS::new( appData.clone() ));
-
-        //execute
-
-        appData.log.print(format!("Waiting"));
-
-        try!(fromGS.waitAnswer("FromGS is opened"));
-
-        let toGS=try!(ToGS::new( appData.clone() ));
-
-        try!(toGS.send("answer","ToGS is opened"));
-
-        try!(fromGS.waitAnswer("IPC is ready"));
-
-        println!("yeah");
-
-        thread::sleep_ms( 15000 );
-
-        //toGS.send("close","");
-
-        let gameServer=Arc::new(
-            GameServer{
-                appData:Arc::downgrade(&appData),
-                fromGS:fromGS,
-                toGS:toGS,
-            }
-        );
-
-        *appData.gameServer.write().unwrap()=Some(gameServer);
-
-        Ok(())
-    }
-}
-*/

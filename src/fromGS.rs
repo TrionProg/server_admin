@@ -25,6 +25,9 @@ impl FromGS{
             Ok(  s )=>s,
             Err( e )=>return Err( format!("Can not create fromGS socket : {}",e.description()) ),
         };
+
+        fromGS_socket.set_receive_timeout(200);
+
         let mut fromGS_endpoint = match fromGS_socket.bind( &fromGSFileName ){
             Ok(  s )=>s,
             Err( e )=>return Err( format!("Can not create fromGS endpoint : {}",e.description()) ),
@@ -70,15 +73,17 @@ impl FromGS{
                 Ok( _ ) => {
                     match msg.find(':') {
                         Some( p ) => {
-                            let (commandType,args) = msg.split_at( p );
+                            let v: Vec<&str> = msg.splitn(2, ':').collect();
 
-                            println!("\"{}\"",commandType);
-
-                            match commandType {
-                                "close" => break,
-                                "answer" => *answer.lock().unwrap()=Some(String::from(args)),
-                                "print" => appData.log.print( String::from(args) ),
-                                _=>appData.log.print(String::from("unknown")),
+                            if v.len()==2{
+                                match v[0] {
+                                    "close" => break,
+                                    "answer" => *answer.lock().unwrap()=Some(String::from(v[1])),
+                                    "print" => appData.log.print( String::from(v[1]) ),
+                                    _=>appData.log.print(String::from("unknown")),
+                                }
+                            }else{
+                                appData.log.print( format!("[ERROR]ToGS: \"{}\" is no command", msg.as_str()) );
                             }
                         },
                         None => appData.log.print( format!("[ERROR]FromGS: \"{}\" is no command", msg.as_str()) ),

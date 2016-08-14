@@ -24,6 +24,9 @@ impl ToGS{
             Ok(  s )=>s,
             Err( e )=>return Err(format!("Can not create toGS socket : {}",e.description())),
         };
+
+        toGS_socket.set_send_timeout(200);
+
         let mut toGS_endpoint = match toGS_socket.connect( &toGSFileName ){
             Ok(  s )=>s,
             Err( e )=>return Err(format!("Can not create toGS endpoint : {}",e.description())),
@@ -38,11 +41,15 @@ impl ToGS{
         )
     }
 
-    fn send(&self, msg:String ) {
+    pub fn send(&self, commandType:&str, msg:&str ) -> Result<(),String>{
+        let msg=format!("{}:{}",commandType,msg);
+
         match self.toGS_socket.lock().unwrap().write( msg.as_bytes() ){
             Ok ( _ ) => {},
-            Err( e ) => self.appData.upgrade().unwrap().log.print( format!("ToGS Write error : {}",e.description()) ),
+            Err( e ) => return Err( format!("ToGS Write error : {}",e.description()) ),
         }
+
+        Ok(())
     }
 }
 
