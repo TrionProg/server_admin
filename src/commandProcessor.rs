@@ -141,7 +141,7 @@ pub fn process( appData:&Arc<AppData>, text:&String ) -> Result<(), String> {
     let commands=try!( runLexer( text ) );
 
     for command in commands.iter(){
-        match processCommand( command ){
+        match processCommand( appData, command ){
             Ok(()) => {},
             Err( msg ) => return Err(format!("{}\n{}",msg, getLine( text, command.lineBegin, command.lineEnd ) ) ),
         }
@@ -150,14 +150,34 @@ pub fn process( appData:&Arc<AppData>, text:&String ) -> Result<(), String> {
     Ok(())
 }
 
-fn processCommand( command:&Command ) -> Result< (), String > {
+fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), String > {
     let mut it=command.lexemes.iter();
 
     match *nextLexeme( &mut it ){
-        Lexeme::EOF => {},
-        Lexeme::String( ref s ) => return Err(format!("Can not use string \"{}\" as command",s)),
+        Lexeme::EOF => Ok(()),
+        Lexeme::String( ref s ) => Err(format!("Can not use string \"{}\" as command",s)),
         Lexeme::Word( ref w ) => {
             match w.as_ref() {
+                /*
+                "install" => {
+                    match *nextLexeme( &mut it ){
+                        Lexeme::Word( ref classToInstall) => {
+                            match classToInstall.as_ref() {
+                                "mod" => {
+                                    match *nextLexeme( &mut it ){
+                                        Lexeme::Word( ref modToInstall ) | Lexeme::String( ref modToInstall ) =>
+                                            appData.doModManager( |modManager| modManager.installMod(modToInstall) ),
+                                        _=>
+                                            Err(format!("Expected name of mod to install")),
+                                    }
+                                },
+                                _=>Err(format!("Expected mod to install")),
+                            }
+                        },
+                        _=>Err(format!("Expected mod to install")),
+                    }
+                }
+                */
                 "run" => {
                     /*
                     match nextLexeme( &mut it ){
@@ -166,12 +186,11 @@ fn processCommand( command:&Command ) -> Result< (), String > {
                     }
                     */
                     println!("haha");
+                    Ok(())
                 },
-                "stop" => {},
-                _=>return Err(format!("Unknown command: \"{}\" ", w )),
+                "stop" => Ok(()),
+                _=>Err(format!("Unknown command: \"{}\" ", w )),
             }
         },
     }
-
-    return Ok(())
 }

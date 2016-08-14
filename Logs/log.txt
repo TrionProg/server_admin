@@ -6,5 +6,10 @@
 [INFO]Mods have been checked and activated
 [INFO]Starting web interface
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
+[INFO]Running game server
+Waiting
+Opened
+toGS
+[INFO]Game server has been rant
 [INFO]Closing web interface
 [INFO]Web interface is closed

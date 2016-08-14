@@ -402,4 +402,8 @@ assert_eq!(hex,
 
         Ok(())
     }
+
+    pub fn installMod(&self, nameOfMod:&String) -> Result<(), String> {
+        Ok(())
+    }
 }

@@ -5,6 +5,7 @@ extern crate iron;
 extern crate router;
 extern crate curl;
 extern crate zip;
+extern crate nanomsg;
 
 mod log;
 mod config;
@@ -16,6 +17,9 @@ mod modManager;
 mod consoleInterface;
 mod webInterface;
 mod commandProcessor;
+mod gameServer;
+mod fromGS;
+mod toGS;
 
 
 
@@ -29,6 +33,7 @@ use serverConfig::ServerConfig;
 use appData::AppData;
 use modManager::ModManager;
 use webInterface::WebInterface;
+use gameServer::GameServer;
 
 fn main(){
     //===================Log===========================
@@ -70,19 +75,12 @@ fn main(){
     //===================checkAndActivateMods=================
     appData.log.print(format!("[INFO]Activating mods"));
 
-    //appData.getModManager().checkAndActivate();
-
-    match *appData.modManager.read().unwrap(){
-        Some( ref modManager) => {
-            match modManager.checkAndActivate( ){
-                Ok( _ ) => appData.log.print(format!("[INFO]Mods have been checked and activated")),
-                Err( msg ) => {
-                    appData.log.print(format!("[ERROR]Can not check mods : {}", msg ));
-                    return;
-                },
-            }
+    match appData.doModManager(|modManager| modManager.checkAndActivate()) {
+        Ok( _ ) => appData.log.print(format!("[INFO]Mods have been checked and activated")),
+        Err( msg ) => {
+            appData.log.print(format!("[ERROR]Can not check mods : {}", msg ));
+            return;
         },
-        None=>{},
     }
 
     //===================WebInterface=================
@@ -94,6 +92,21 @@ fn main(){
             appData.log.print(format!("[ERROR]Can not run web server on port {} : {}", appData.serverConfig.server_adminPort, e.description()));
             return;
         },
+    }
+
+    /*
+    let s=String::from("");
+    match GameServerChannel::run( appData.clone(), &s){
+        Ok( _ ) => println!("yeee"),
+        Err(e ) => println!("{}",e),
+    }
+    */
+
+    appData.log.print(format!("[INFO]Running game server"));
+
+    match GameServer::run( appData.clone() ) {
+        Ok ( _ ) => appData.log.print(format!("[INFO]Game server has been rant")),
+        Err( e ) => appData.log.print(format!("[ERROR]Can not run game server : {}", e)),
     }
 
     //===================ConsoleInterface============
