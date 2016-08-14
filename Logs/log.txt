@@ -8,7 +8,6 @@
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
 [INFO]Running game server
 [INFO]Game server has been rant
-[ERROR]Connection with game server has been lost
 [INFO]Game server connection has been closed
 [INFO]Closing web interface
 [INFO]Web interface is closed
