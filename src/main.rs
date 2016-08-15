@@ -3,7 +3,7 @@
 extern crate rustc_serialize;
 extern crate iron;
 extern crate router;
-extern crate curl;
+//extern crate curl;
 extern crate zip;
 extern crate nanomsg;
 
@@ -20,8 +20,6 @@ mod commandProcessor;
 mod gameServer;
 
 
-
-use std::error::Error;
 
 use std::thread;
 use std::sync::{Mutex,RwLock,Arc,Barrier};
@@ -87,30 +85,24 @@ fn main(){
     match WebInterface::run( appData.clone() ) {
         Ok( _ ) => appData.log.print(format!("[INFO]Web interface is ready, connect to localhost:{} by your browser",appData.serverConfig.server_adminPort)),
         Err( e ) => {
-            appData.log.print(format!("[ERROR]Can not run web server on port {} : {}", appData.serverConfig.server_adminPort, e.description()));
+            appData.log.print(format!("[ERROR]Can not run web server on port {} : {}", appData.serverConfig.server_adminPort, e));
             return;
         },
     }
 
     /*
-    let s=String::from("");
-    match GameServerChannel::run( appData.clone(), &s){
-        Ok( _ ) => println!("yeee"),
-        Err(e ) => println!("{}",e),
-    }
-    */
-
     appData.log.print(format!("[INFO]Running game server"));
 
     match GameServer::run( appData.clone() ) {
         Ok ( _ ) => appData.log.print(format!("[INFO]Game server has been rant")),
         Err( e ) => appData.log.print(format!("[ERROR]Can not run game server : {}", e)),
     }
-
+    
     match *appData.gameServer.read().unwrap(){
         Some( _ )=>println!("is"),
         None=>println!("not"),
     }
+    */
 
     //===================ConsoleInterface============
     consoleInterface::readInput( appData.clone() );

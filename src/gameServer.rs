@@ -174,17 +174,7 @@ impl GameServer {
                         break;
                     },
                 }
-                /*
-                {
-                let v: Vec<&str> = msg.splitn(2, ':').collect();
-
-                if v.len()==2{
-                    GameServer::processFromGSCommand( &appData, v[0], v[1] );
-                }else{
-                    appData.log.print( format!("[ERROR]FromGS: \"{}\" is no command", msg.as_str()) );
-                }
-                }
-                */
+                
                 msg.clear();
             }
 

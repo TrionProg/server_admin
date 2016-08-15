@@ -5,7 +5,7 @@ use std::error::Error;
 use rustc_serialize::json;
 
 use std::io::{stdout, Read};
-use curl::easy::Easy;
+//use curl::easy::Easy;
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::{Occupied, Vacant};

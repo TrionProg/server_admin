@@ -38,10 +38,17 @@ impl AppData{
             None=>{},
         }
         */
+        match *self.gameServer.read().unwrap(){
+            Some( ref gs ) => gs.stop(),
+            None=>{},
+        }
+        
         match *self.webInterface.read().unwrap(){
             Some( ref wi ) => wi.close(),
             None=>{},
         }
+
+        *self.webInterface.write().unwrap()=None;
     }
 
     pub fn doModManager<T,F>(&self, f:F) -> T where F:FnOnce(&ModManager) -> T {

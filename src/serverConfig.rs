@@ -16,24 +16,6 @@ pub struct ServerConfig{
 
 impl ServerConfig{
     pub fn read() -> Result<ServerConfig, String> {
-        /*
-        let s=String::from("\"server_adminPort\":\"1945\",\"server_gamePort\":\"1941\"");
-
-        let config:ServerConfig=try!(config::parse( &s, |root| {
-            //let server_adminPort=try!(root.getAs::<u16>("server.adminPort"));
-
-            //let server_adminPort=try!(root.getAs::<u16>("server.adminPort"));
-
-
-            Ok(
-                ServerConfig{
-                    server_adminPort:try!(root.getAs::<u16>("server.adminPort")),
-                    server_gamePort:try!(root.getAs::<u16>("server.gamePort")),
-                }
-            )
-        }));
-        */
-
         //let a= ServerConfig{server_adminPort:1945, server_gamePort:1941};
         //println!("{}",json::encode(&a).unwrap());
 

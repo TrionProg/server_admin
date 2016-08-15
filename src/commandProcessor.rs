@@ -2,8 +2,11 @@ use std::str::Chars;
 
 use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
 
-use appData::AppData;
 use std::slice::Iter;
+
+use appData::AppData;
+
+use gameServer::GameServer;
 
 enum Lexeme{
     EOF,
@@ -179,16 +182,26 @@ fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), Stri
                 }
                 */
                 "run" => {
+
                     /*
                     match nextLexeme( &mut it ){
                         Lexeme::EOF => {},
                         Lexeme::Word( ref map ) | Lexeme::String( ref map ) => {},
                     }
                     */
-                    println!("haha");
+                    match GameServer::run( appData.clone() ) {
+                        Ok ( _ ) => {appData.log.print(format!("[INFO]Game server has been rant")); Ok(())},
+                        Err( e ) => Err(format!("Can not run game server : {}", e)),
+                    }
+                },
+                "stop" => {
+                    match *appData.gameServer.read().unwrap(){
+                        Some( ref gs ) => gs.stop(),
+                        None=>{},
+                    }
+
                     Ok(())
                 },
-                "stop" => Ok(()),
                 _=>Err(format!("Unknown command: \"{}\" ", w )),
             }
         },
