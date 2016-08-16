@@ -7,7 +7,7 @@
 
         <style>
             .loginMenu {
-                position:relative;
+                position:absolute;
                 margin-left:50%;
                 left:-25%;
                 width:50%;
@@ -104,44 +104,180 @@
                 background-color:#385295;
             }
             */
+
+            .logoutButton{
+                position:absolute;
+                right:20px;
+                font-size:20px;
+                color:#f0e5e5;
+
+                display:none;
+                top:-40px;
+
+                transition-property: top, right;
+                transition-duration: 300ms;
+            }
+
+            .mainMenuButton{
+                position:relative;
+                border-width:2px;
+                border-style:solid;
+                border-top-width:3px;
+                border-left-width:3px;
+                padding: 10px 10px 10px;
+                text-align: :center;
+                color:#000;
+                font-size:20px;
+                width:133px;
+                height:133px;
+                margin-left:25px;
+                display: inline-block;
+
+                transition-property: background-color;
+                transition-duration: 300ms;
+            }
+
+            .mainMenuButton:hover#runServer{
+                background-color: #000;
+            }
+
+            .mainMenu{
+                position: absolute;;
+                top:0px;
+                width:100%;
+                height:100%;
+                background-color: transparent;
+
+                display:none;
+                opacity:0;
+                left:0px;
+
+                transition-property: opacity , left;
+                transition-duration: 500ms;
+            }
+
+            .mainMenuButtonsBox{
+                position:absolute;
+                left:-366px;
+                margin-left:50%;
+                width:750px;
+                height:158px;
+                background-color: transparent;
+
+                top:calc(50% - 59px);
+
+                transition-property: top;
+                transition-duration: 500ms;
+            }
+
+            .consoleLog{
+                position: absolute;
+                border-style: solid;
+                border-width: 2px;
+                border-color: #7a7b8a;
+                border-top-width: 1px;
+                border-bottom-width: 1px;
+                background-color: #292c2e;
+                color:#f0e5e5;
+                font-size:14px;
+                width:calc(100% - 4px);
+                left:0px;
+                bottom:32px;
+
+                display:none;
+                height:0px;
+
+                transition-property: height;
+                transition-duration: 500ms;
+            }
+
+            .consoleInput{
+                position: absolute;
+                border-style: solid;
+                border-width: 2px;
+                border-color: #7a7b8a;
+                border-top-width: 1px;
+                border-bottom-width: 1px;
+                background-color: #202020;
+                color:#f0e5e5;
+                font-size:14px;
+                width:calc(100% - 4px);
+                left:0px;
+                bottom:0px;
+                height:32px;
+
+                display: block;
+            }
+
+            .consoleCloseButton{
+                position:absolute;
+                border-style: solid;
+                border-width: 2px;
+                border-color: #7a7b8a;
+                border-top-width: 1px;
+                border-bottom-width: 1px;
+                width:calc(100% - 4px);
+                height:18px;
+                left:0px;
+
+                display: none;
+                background-color: #b5b5b5;
+                bottom:0px;
+
+                transition-property: background-color;
+                transition-duration: 300ms;
+            }
+
+            .consoleCloseButton:hover{
+                background-color: #656565;
+            }
+
         </style>
         <script>
+            var loginMenuIsOpen=false;
+            var mainMenuIsOpen=false;
+            var consoleIsOpen=false;
+            var logoutButtonIsOpen=false;
+
             function openLoginMenu(){
-                document.getElementById("loginMenu").style.display="block";
+                if(! loginMenuIsOpen ){
+                    loginMenuIsOpen=true;
+                    document.getElementById("loginMenu").style.display="block";
 
-                document.getElementById("loginError").style.display="none";
+                    document.getElementById("loginError").style.display="none";
 
-                var loginPassword=document.getElementById("loginPassword");
-                loginPassword.innerHTML="";
-                loginPassword.style.backgroundColor="#D0D0D0";
-                loginPassword.style.borderColor="#707070";
+                    var loginPassword=document.getElementById("loginPassword");
+                    loginPassword.innerHTML="";
+                    loginPassword.style.backgroundColor="#D0D0D0";
+                    loginPassword.style.borderColor="#707070";
 
-                setupLoginButton();
+                    setupLoginButton();
 
-                var timer = setInterval(function() {
-                    var loginMenu = document.getElementById("loginMenu");
+                    var timer = setInterval(function() {
+                        var loginMenu = document.getElementById("loginMenu");
 
-                    loginMenu.addEventListener('transitionend', function() {
-                        document.getElementById("loginMenu").style.display="block";
-                    });
+                        loginMenu.style.top="0px";
+                        loginMenu.style.opacity=1;
 
-
-                    loginMenu.style.top="0px";
-                    loginMenu.style.opacity=1;
-
-                    clearInterval(timer);
-                }, 20);
+                        clearInterval(timer);
+                    }, 20);
+                }
             }
 
             function closeLoginMenu(){
-                var loginMenu = document.getElementById("loginMenu");
+                if( loginMenuIsOpen ){
+                    var loginMenu = document.getElementById("loginMenu");
 
-                loginMenu.addEventListener('transitionend', function() {
-                    document.getElementById("loginMenu").style.display="none";
-                });
+                    var timerCCB = setInterval(function() {
+                        document.getElementById("loginMenu").style.display="none";
+                        loginMenuIsOpen=false;
 
-                loginMenu.style.top="-500px";
-                loginMenu.style.opacity=0.5;
+                        clearInterval(timerCCB);
+                    }, 300);
+
+                    loginMenu.style.top="-100%";
+                    loginMenu.style.opacity=0.5;
+                }
             }
 
             function setupLoginButton(){
@@ -220,7 +356,7 @@
                 loginError.style.display="table-cell";
 
                 var loginPassword=document.getElementById("loginPassword");
-                loginPassword.innerHTML="";
+                loginPassword.value="";
                 loginPassword.style.backgroundColor="#e4aeae";
                 loginPassword.style.borderColor="#821212";
 
@@ -231,20 +367,137 @@
                 document.getElementById("loginError").style.display="none";
 
                 var loginPassword=document.getElementById("loginPassword");
-                loginPassword.innerHTML="";
+                loginPassword.value="";
                 loginPassword.style.backgroundColor="#73D962";
                 loginPassword.style.borderColor="#1C8220";
 
                 var timer = setInterval(function() {
                     closeLoginMenu();
+                    openMainMenu();
 
                     clearInterval(timer);
                 }, 1000);
             }
+
+            function showLogoutButton(){
+                if( !logoutButtonIsOpen ){
+                    logoutButtonIsOpen=true;
+                    document.getElementById("logoutButton").style.display="block";
+
+                    var timer = setInterval(function() {
+                        document.getElementById("logoutButton").style.top="10px";
+
+                        clearInterval(timer);
+                    }, 20);
+                }
+            }
+
+            function hideLogoutButton(){
+                if( logoutButtonIsOpen ){
+                    logoutButtonIsOpen=false;
+                    document.getElementById("logoutButton").style.top="-40px";
+
+                    var timer = setInterval(function() {
+                        document.getElementById("logoutButton").style.display="none";
+                        clearInterval(timer);
+                    }, 300);
+                }
+            }
+
+            function openMainMenu(){
+                if( !mainMenuIsOpen ){
+                    mainMenuIsOpen=true;
+                    document.getElementById("mainMenu").style.display="block";
+
+                    if( consoleIsOpen ){
+                        document.getElementById("consoleLog").style.display="block";
+                        document.getElementById("consoleCloseButton").style.display="block";
+                    }else{
+                        showLogoutButton();
+                    }
+
+                    var timer = setInterval(function() {
+                        var mainMenu=document.getElementById("mainMenu");
+                        mainMenu.style.opacity=1;
+
+                        clearInterval(timer);
+                    }, 20);
+                }
+            }
+
+            function closeMainMenu(){
+                if( mainMenuIsOpen ){
+                    document.getElementById("mainMenu").style.left="-100%";
+
+                    var timer = setInterval(function() {
+                        mainMenu=document.getElementById("mainMenu");
+                        mainMenu.style.display="none";
+                        mainMenu.style.left="0px";
+                        mainMenu.style.opacity=0;
+                        mainMenuIsOpen=false;
+
+                        clearInterval(timer);
+                    }, 500);
+                }
+            }
+
+            function showConsole(){
+                if (!consoleIsOpen && mainMenuIsOpen) {
+                    consoleIsOpen=true;
+                    var consoleLog=document.getElementById("consoleLog");
+                    consoleLog.style.display="block";
+
+                    var timer = setInterval(function() {
+                        var consoleLog=document.getElementById("consoleLog");
+                        consoleLog.style.height="calc(100% - 232px)";
+
+                        var mainMenuButtonsBox=document.getElementById("mainMenuButtonsBox");
+                        mainMenuButtonsBox.style.top="10px";
+
+                        hideLogoutButton();
+
+                        var timerCCB = setInterval(function() {
+                            document.getElementById("consoleCloseButton").style.display="block";
+                            document.getElementById("consoleCloseButton").style.bottom="calc(100% - 196px)";
+
+                            clearInterval(timerCCB);
+                        }, 500);
+
+                        clearInterval(timer);
+                    }, 20);
+                }
+            }
+
+            function startConsole(){
+                console.log("start");
+                var consoleCloseButton=document.getElementById("consoleCloseButton");
+                consoleCloseButton.style.bottom="calc(100% - 195px)";
+                consoleCloseButton.style.display="block";
+            }
+
+            function hideConsole(){
+                if( consoleIsOpen ){
+                    document.getElementById("consoleCloseButton").style.display="none";
+
+                    document.getElementById("mainMenuButtonsBox").style.top="calc(50% - 59px)";
+
+                    var consoleLog=document.getElementById("consoleLog");
+                    consoleLog.style.height="0px";
+
+                    var timer = setInterval(function() {
+                        document.getElementById("consoleLog").style.display="none";
+                        consoleIsOpen=false;
+
+                        clearInterval(timer);
+                    }, 500);
+
+                    showLogoutButton();
+                }
+            }
         </script>
     </HEAD>
     <BODY>
-        <div style="position:absolute; width:100%; height:100%; background-image:url(background.png); background-repeat:space;" ></div>
+        <div style="position:absolute; width:100%; height:100%; background-image:url(background.png); background-repeat:repeat;" >
         <div id="loginMenu" class="loginMenu">
             <div style="position:relative; height:150px;"></div>
             <div style="position:relative; text-align:center; font-size:24px; color:#000; padding-bottom:10px;">Admin menu</div>
@@ -267,13 +520,34 @@
 
         </div>
 
-        <button id="open">Кликни меня</button>
+        <div id="mainMenu" class="mainMenu">
+
+            <div id="logoutButton" class="logoutButton">Logout</div>
+
+            <div id="mainMenuButtonsBox" class="mainMenuButtonsBox">
+                <div id="runServer" class="mainMenuButton" style="background-color:#448eb5; border-color:#eea87b;"> Hi </div>
+                <div id="mapManager" class="mainMenuButton" style="background-color:#b1dadc; border-color:#eea87b"> Hi </div>
+                <div id="modManager" class="mainMenuButton" style="background-color:#a6dd6a; border-color:#733a17;"> Hi </div>
+                <div id="settings" class="mainMenuButton" style="background-color:#c7d8e2; border-color:#7c6658;"> Hi </div>
+            </div>
+
+            <div id="consoleCloseButton" class="consoleCloseButton"></div>
+            <input id="consoleLog" type="textarea" readOnly="true" spellcheck="false" class="consoleLog"></input>
+            <input id="consoleInput" type="text" spellcheck="false" class="consoleInput"></input>
+
+            <button id="close">закрыть меню</button>
+        </div>
+
+        <button id="open">открыть меню</button>
+
+    </div>
 
         <script>
-            document.getElementById("open").onclick = function () { openLoginMenu() };
-
-            setupLoginButton();
-            openLoginMenu();
+            document.getElementById("open").onclick = function () { openMainMenu(); };
+            document.getElementById("close").onclick = function () { closeMainMenu(); };
+            document.getElementById("consoleCloseButton").onclick = function () { hideConsole(); };
+            document.getElementById("consoleInput").onclick = function () { showConsole(); };
+            document.getElementById("logoutButton").onclick = function () { closeMainMenu(); openLoginMenu(); };
         </script>
     </BODY>
 </HTML>
