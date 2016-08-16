@@ -40,6 +40,7 @@ impl Files{
 }
 
 struct MimeTypes{
+    text:Mime,
     html:Mime,
     png:Mime,
 }
@@ -49,6 +50,7 @@ impl WebInterface{
         let files=try!(Files::load());
 
         let mimeTypes=MimeTypes{
+            text:"text/plane".parse::<Mime>().unwrap(),
             html:"text/html".parse::<Mime>().unwrap(),
             png: "img/png".parse::<Mime>().unwrap(),
         };
@@ -86,6 +88,16 @@ impl WebInterface{
         let router_webInterface=webInterface.clone();
         router.get("/favicon.ico", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.png.clone(),
             status::Ok, WebInterface::contentFromFile("Files/icon.png"))
+        )) );
+
+        let router_webInterface=webInterface.clone();
+        router.get("/background.png", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.png.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/background.png"))
+        )) );
+
+        let router_webInterface=webInterface.clone();
+        router.get("/login", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/loginAnswer.txt"))
         )) );
 
         /*

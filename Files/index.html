@@ -3,13 +3,277 @@
     <HEAD>
         <meta charset='utf-8'>
 
-        <title>Admin menu</title>
+        <title>Admin menu : login</title>
 
-        <!-- <link rel="fluid-icon" href="localhost:1945/icon.png" title="Admin menu"> -->
-        <!-- <link rel="shortcut icon" href="localhost:1945/icon.png"> -->
+        <style>
+            .loginMenu {
+                position:relative;
+                margin-left:50%;
+                left:-25%;
+                width:50%;
+                min-width:350px;
+                height:100%;
+                min-height:500px;
+                background-color:#bfbfbf;
+                font-family: fantasy;
+
+                top:-500px;
+                opacity=0.5;
+                display:none;
+
+                transition-property: top , opacity;
+                transition-duration: 300ms;
+            }
+
+            .divider {
+                position:relative;
+                width:100%;
+                height:1px;
+                background-color:#888;
+                border-color:#aaa;
+                border-style:solid;
+                border-top-width: 1px;
+                border-bottom-width: 1px;
+                border-left-width: 0px;
+                border-right-width: 0px;
+            }
+
+            .loginPassword{
+                font-size:30px;
+                border-width: 1px;
+                border-radius:5px;
+                border-style: solid;
+                width:100%;
+
+                background-color:#D0D0D0;
+                border-color:#707070;
+
+                transition-property: background-color , border-color;
+                transition-duration: 300ms;
+            }
+
+            .loginButton{
+                position:relative;
+                border-width:1px;
+                border-color:#1616bf;
+                border-style:solid;
+                border-radius: 5px;
+                background-color:#0c3bb7;
+                padding: 10px 15px 10px;
+                width:120px;
+                height:30px;
+                color:#b0c1e1;
+                font-size:24px;
+                text-align:center;
+                margin-left:50%;
+                left:-75px;
+                cursor: default;
+
+                transition-property: background-color , border-color;
+                transition-duration: 300ms;
+            }
+
+            .loginProgress{
+                position:absolute;
+                top:-1px;
+                left:-1px;
+                width:28px;
+                height: 28px;
+                border-color:#247621;
+                border-width:1px;
+                border-style:solid;
+                background-color:#39972a;
+
+                transition-property: left;
+                transition-duration: 1s;
+            }
+
+            .loginProgressBackground{
+                position:relative;
+                background-color:#87adc5;
+                border-color:#5e78b6;
+                border-width:1px;
+                border-style:solid;
+                width:118px;
+                height:28px;
+            }
+
+            /*
+            .loginButton:hover{
+                border-color:#252572;
+                background-color:#385295;
+            }
+            */
+        </style>
+        <script>
+            function openLoginMenu(){
+                document.getElementById("loginMenu").style.display="block";
+
+                document.getElementById("loginError").style.display="none";
+
+                var loginPassword=document.getElementById("loginPassword");
+                loginPassword.innerHTML="";
+                loginPassword.style.backgroundColor="#D0D0D0";
+                loginPassword.style.borderColor="#707070";
+
+                setupLoginButton();
+
+                var timer = setInterval(function() {
+                    var loginMenu = document.getElementById("loginMenu");
+
+                    loginMenu.addEventListener('transitionend', function() {
+                        document.getElementById("loginMenu").style.display="block";
+                    });
+
+
+                    loginMenu.style.top="0px";
+                    loginMenu.style.opacity=1;
+
+                    clearInterval(timer);
+                }, 20);
+            }
+
+            function closeLoginMenu(){
+                var loginMenu = document.getElementById("loginMenu");
+
+                loginMenu.addEventListener('transitionend', function() {
+                    document.getElementById("loginMenu").style.display="none";
+                });
+
+                loginMenu.style.top="-500px";
+                loginMenu.style.opacity=0.5;
+            }
+
+            function setupLoginButton(){
+                var loginButton=document.getElementById("loginButton");
+                loginButton.innerHTML="Login";
+
+                loginButton.onclick = function () { checkLogin() };
+                loginButton.onmouseover = function () {
+                    var loginButton=document.getElementById("loginButton");
+                    loginButton.style.borderColor="#252572";
+                    loginButton.style.backgroundColor="#385295";
+                }
+
+                loginButton.onmouseout = function () {
+                    var loginButton=document.getElementById("loginButton");
+                    loginButton.style.borderColor="#1616bf";
+                    loginButton.style.backgroundColor="#0c3bb7";
+                }
+            }
+
+            function checkLogin(){
+                var loginButton=document.getElementById("loginButton");
+
+                loginButton.onclick="";
+                loginButton.onmouseover="";
+                loginButton.onmouseout="";
+
+                loginButton.style.borderColor="#252572";
+                loginButton.style.backgroundColor="#385295";
+                /*
+                loginButton.onclick="";
+                loginButton.innerHTML="<div class=\"loginProgressBackground\"><div id=\"loginProgress\" class=\"loginProgress\"></div></div>";
+
+                loginProgressMoveRight();
+                */
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/login', true);
+                xhr.send();
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState != 4) return;
+
+                    if (xhr.status != 200) {
+                        console.log( xhr.status + ': ' + xhr.statusText );
+                        loginError("Connection problems");
+                    } else {
+                        if (xhr.responseText=="accepted\n") {
+                            loginSuccess();
+                        }else{
+                            loginError(xhr.responseText);
+                        }
+                    }
+                }
+            }
+
+            /*
+            function loginProgressMoveLeft(){
+                document.getElementById("loginProgress").style.left="-1px";
+                document.addEventListener('transitionend', function() {
+                    loginProgressMoveRight();
+                });
+            }
+
+            function loginProgressMoveRight(){
+                document.getElementById("loginProgress").style.left="90px";
+                document.addEventListener('transitionend', function() {
+                    loginProgressMoveLeft();
+                });
+            }
+            */
+
+            function loginError( msg ){
+                var loginError=document.getElementById("loginError");
+                loginError.innerHTML=msg;
+                loginError.style.display="table-cell";
+
+                var loginPassword=document.getElementById("loginPassword");
+                loginPassword.innerHTML="";
+                loginPassword.style.backgroundColor="#e4aeae";
+                loginPassword.style.borderColor="#821212";
+
+                setupLoginButton();
+            }
+
+            function loginSuccess(){
+                document.getElementById("loginError").style.display="none";
+
+                var loginPassword=document.getElementById("loginPassword");
+                loginPassword.innerHTML="";
+                loginPassword.style.backgroundColor="#73D962";
+                loginPassword.style.borderColor="#1C8220";
+
+                var timer = setInterval(function() {
+                    closeLoginMenu();
+
+                    clearInterval(timer);
+                }, 1000);
+            }
+        </script>
     </HEAD>
     <BODY>
-        hello
-        <img src="favicon.ico" ></img>
+        <div style="position:absolute; width:100%; height:100%; background-image:url(background.png); background-repeat:space;" ></div>
+        <div id="loginMenu" class="loginMenu">
+            <div style="position:relative; height:150px;"></div>
+            <div style="position:relative; text-align:center; font-size:24px; color:#000; padding-bottom:10px;">Admin menu</div>
+            <div class="divider"></div>
+            <div style="position:relative; margin-left:50%; left:-170px; width:340px; height:240px;">
+                <div style="position:relative; padding: 20px 20px 20px; height:30px; font-size:14px;">
+                    Please, input admin's password to login
+                </div>
+                <div style="position:relative; padding: 10px 0px 10px; width:100%; display:table;">
+                    <div style="position:relative: display:table-cell; padding-left:20px; text-align:left; font-size:14px;">Password:</div>
+                    <div id="loginError" style="position:relative; padding-right:20px; display:none; text-align:right; font-size:10px; color:#6a0202;"></div>
+                </div>
+                <div style="position:relative; padding: 0px 10px 10px;">
+                    <input id="loginPassword" autofocus="autofocus" type="password" class="loginPassword" ></input>
+                </div>
+                <div style="position:relative; height:10px;"></div>
+                <div id="loginButton" class="loginButton">Login</div>
+            </div>
+            <div class="divider"></div>
+
+        </div>
+
+        <button id="open">Кликни меня</button>
+
+        <script>
+            document.getElementById("open").onclick = function () { openLoginMenu() };
+
+            setupLoginButton();
+            openLoginMenu();
+        </script>
     </BODY>
 </HTML>
