@@ -124,7 +124,6 @@ function setServerButtonState( state ){
     document.getElementById("serverButton_run").style.display="none";
     document.getElementById("serverButton_process").style.display="none";
     document.getElementById("serverButton_stop").style.display="none";
-    document.getElementById("serverButton_error").style.display="none";
 
     switch (state) {
         case "run":
@@ -149,24 +148,6 @@ function setServerButtonState( state ){
             document.getElementById("serverButton").style.backgroundColor="#a65cbe";
             document.getElementById("serverButton").style.borderColor="#c19d85";
             document.getElementById("serverButton_stop").style.display="block";
-
-            break;
-        case "error":
-            document.getElementById("serverButton").style.backgroundColor="#d1857d";
-            document.getElementById("serverButton").style.borderColor="#70251f";
-            document.getElementById("serverButton_error").style.display="block";
-
-            var timer = setInterval(function() {
-                showConsole();
-
-                var timer2 = setInterval(function() {
-                    setServerButtonState( "run" );
-
-                    clearInterval(timer2);
-                }, 2000);
-
-                clearInterval(timer);
-            }, 2000);
 
             break;
     }
@@ -209,7 +190,7 @@ function mainMenuButtonOver( buttonName ){
             break;
         case "mapManagerButton":
             if( serverButtonState=="run" ){
-                document.getElementById("mapManagerButton").style.backgroundColor="#3b888c";
+                document.getElementById("mapManagerButton").style.backgroundColor="#85aac0";
             }
 
             break;
@@ -282,7 +263,8 @@ function serverButtonClick(){
             xhr.send();
 
             var timer = setInterval(function() {
-                setServerButtonState( "error" );
+                setServerButtonState("run");
+                openErrorMenu( "Server error" );
 
                 clearInterval(timer);
             }, 3000);

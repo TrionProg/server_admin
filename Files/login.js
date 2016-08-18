@@ -28,22 +28,23 @@
  function closeLoginMenu(){
      if( loginMenuIsOpen ){
          var loginMenu = document.getElementById("loginMenu");
+         loginMenu.style.top="-100%";
+         loginMenu.style.opacity=0.5;
 
-         var timerCCB = setInterval(function() {
+         var timer = setInterval(function() {
              document.getElementById("loginMenu").style.display="none";
              loginMenuIsOpen=false;
 
-             clearInterval(timerCCB);
+             clearInterval(timer);
          }, 300);
-
-         loginMenu.style.top="-100%";
-         loginMenu.style.opacity=0.5;
      }
  }
 
  function setupLoginButton(){
      var loginButton=document.getElementById("loginButton");
      loginButton.innerHTML="Login";
+     loginButton.style.borderColor="#1616bf";
+     loginButton.style.backgroundColor="#0c3bb7";
 
      loginButton.onclick = function () { checkLogin() };
      loginButton.onmouseover = function () {

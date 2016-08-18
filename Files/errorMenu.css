@@ -1,0 +1,40 @@
+
+.errorsList{
+    font-size:30px;
+    border-width: 1px;
+    border-radius:3px;
+    border-style: solid;
+    width:calc(100% - 2px);
+    height:150px;
+    color:#000;
+
+    background-color:#ffd8d8;
+    border-color:#cc212c;
+}
+
+.errorOkButton{
+    position:relative;
+    border-width:1px;
+    border-style:solid;
+    border-radius: 5px;
+    padding: 10px 15px 10px;
+    width:120px;
+    height:30px;
+    color:#b0c1e1;
+    font-size:24px;
+    text-align:center;
+    margin-left:50%;
+    left:-75px;
+    cursor: default;
+
+    background-color:#0c3bb7;
+    border-color:#1616bf;
+
+    transition-property: background-color , border-color;
+    transition-duration: 300ms;
+}
+
+.errorOkButton:hover{
+    background-color:#252572;
+    border-color:#385295;
+}
