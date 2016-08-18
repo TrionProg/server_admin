@@ -1,0 +1,65 @@
+<div id="mainMenu" class="mainMenu">
+
+    <div id="logoutButton" class="logoutButton">Logout</div>
+
+    <div id="mainMenuButtonsBox" class="mainMenuButtonsBox">
+        <div id="serverButton" class="imgButton" style="left: 0px;">
+            <div id="serverButton_run" class="imgButtonContent">
+                <div class="imgButtonImg" style="background-image:url(icon_run.png);"></div>
+                Run server
+            </div>
+            <div id="serverButton_process" class="imgButtonContent">
+                process
+            </div>
+            <div id="serverButton_stop" class="imgButtonContent">
+                <div class="imgButtonImg" style="background-image:url(icon_stop.png);"></div>
+                Stop server
+            </div>
+            <div id="serverButton_error" class="imgButtonContent">
+                <div class="imgButtonImg" style="background-image:url(icon_x.png);"></div>
+                Error
+            </div>
+        </div>
+
+
+        <div id="mapManagerButton" class="imgButton" style="left:190px; background-color:#b1dadc; border-color:#eea87b;">
+            <div class="imgButtonImg" style="background-image:url(icon_map.png);"></div>
+            Map manager
+        </div>
+        <div id="modManagerButton" class="imgButton" style="left:380px; background-color:#a6dd6a; border-color:#733a17;">
+            <div class="imgButtonImg" style="background-image:url(icon_mod.png);"></div>
+            Mod manager
+        </div>
+        <div id="settingsButton" class="imgButton" style="left:570px; background-color:#c7d8e2; border-color:#7c6658;">
+            <div class="imgButtonImg" style="background-image:url(icon_settings.png);"></div>
+            Settings
+        </div>
+    </div>
+
+    <div id="consoleCloseButton" class="consoleCloseButton"></div>
+    <input id="consoleLog" type="textarea" readOnly="true" spellcheck="false" class="consoleLog"></input>
+    <input id="consoleInput" type="text" spellcheck="false" class="consoleInput"></input>
+
+    <button id="close">закрыть меню</button>
+</div>
+
+<button id="open">открыть меню</button>
+
+<script>
+    document.getElementById("open").onclick = function () { openMainMenu(); };
+    document.getElementById("close").onclick = function () { closeMainMenu(); };
+    document.getElementById("consoleCloseButton").onclick = function () { hideConsole(); };
+    document.getElementById("consoleInput").onclick = function () { showConsole(); };
+    document.getElementById("logoutButton").onclick = function () { closeMainMenu(); openLoginMenu(); };
+    document.getElementById("serverButton").onmouseover = function () { mainMenuButtonOver("serverButton"); };
+    document.getElementById("serverButton").onmouseout = function () { mainMenuButtonOut("serverButton"); };
+    document.getElementById("serverButton").onclick = function () { serverButtonClick(); };
+    document.getElementById("mapManagerButton").onmouseover = function () { mainMenuButtonOver("mapManagerButton"); };
+    document.getElementById("mapManagerButton").onmouseout = function () { mainMenuButtonOut("mapManagerButton"); };
+    document.getElementById("modManagerButton").onmouseover = function () { mainMenuButtonOver("modManagerButton"); };
+    document.getElementById("modManagerButton").onmouseout = function () { mainMenuButtonOut("modManagerButton"); };
+    document.getElementById("settingsButton").onmouseover = function () { mainMenuButtonOver("settingsButton"); };
+    document.getElementById("settingsButton").onmouseout = function () { mainMenuButtonOut("settingsButton"); };
+
+    setServerButtonState( "run");
+</script>

@@ -16,6 +16,9 @@ use iron::mime::Mime;
 use std::io::Read;
 use std::error::Error;
 
+use std::fs::File;
+use std::io;
+
 pub struct WebInterface{
     pub appData:Weak<AppData>,
     files:Files,
@@ -36,6 +39,104 @@ impl Files{
                 index:RwLock::new(String::from("Hello world")),
             }
         )
+    }
+
+    fn readFile( fileName:&str) -> Result<Vec<u8>, String> {
+        let fileName=format!("Files/{}", fileName);
+
+        let mut file=match File::open(&fileName) {
+            Ok ( f ) => f,
+            Err( e ) => return Err(format!("Can not read file \"{}\" : {}", fileName, e.description()) ),
+        };
+
+        let mut content = Vec::new();
+        match file.read_to_end(&mut content){
+            Ok ( c )  => {},
+            Err( e ) => return Err(format!("Can not read file \"{}\" : {}", fileName, e.description()) ),
+        }
+
+        Ok(content)
+    }
+
+    fn readUTF8File( fileName:&str ) -> Result<String, String> {
+        let text=match String::from_utf8( try!(Files::readFile( fileName )) ){
+            Ok ( p ) => p,
+            Err( _ ) => return Err( format!("File {} is no valid utf-8 file", fileName) ),
+        };
+
+        let mut resultString=String::with_capacity(16*1024);
+
+        let mut prevIsSpace=false;
+
+        for ch in text.chars(){
+            if ch.is_whitespace() {
+                if !prevIsSpace {
+                    resultString.push(ch);
+                    prevIsSpace=true;
+                }
+            }else{
+                prevIsSpace=false;
+                resultString.push(ch);
+            }
+        }
+
+        Ok(resultString)
+    }
+
+    fn buildWebPage( pageName:&str ) -> Result<String, String> {
+        use std::str::Chars;
+        let page=try!( Files::readUTF8File(pageName) );
+
+        let mut it=page.chars();
+
+        let mut resultString=String::with_capacity(16*1024);
+
+        fn nextChar( it:&mut Chars) -> char{
+            match it.next() {
+                Some( ch ) => ch,
+                None => '\0',
+            }
+        }
+
+        loop{
+            let ch=nextChar( &mut it );
+            match ch{
+                '<' => {
+                    let ch=nextChar( &mut it );
+                    match ch{
+                        '?'=> {
+                            let mut fileName=String::new();
+
+                            loop {
+                                let ch=nextChar( &mut it );
+
+                                if ch=='/' {
+                                    break;
+                                }else if ch=='\0'{
+                                    return Err(String::from("Expected />"));
+                                }
+
+                                fileName.push(ch);
+                            }
+
+                            nextChar( &mut it );
+
+                            let fileContent=try!(Files::readUTF8File( &fileName ));
+                            resultString.push_str( &fileContent );
+                        },
+                        '\0'=>break,
+                        _=>{
+                            resultString.push('<');
+                            resultString.push(ch);
+                        }
+                    }
+                }
+                '\0'=>break,
+                _=>resultString.push(ch),
+            }
+        }
+
+        Ok(resultString)
     }
 }
 
@@ -82,18 +183,21 @@ impl WebInterface{
 
         let router_webInterface=webInterface.clone();
         router.get("/", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.html.clone(),
-            status::Ok, WebInterface::contentFromFile("Files/index.html"))
+            status::Ok, match Files::buildWebPage("index.html") { Ok(m) => m, Err(e)=>format!("err:{}",e),})
         )) );
 
-        let router_webInterface=webInterface.clone();
-        router.get("/favicon.ico", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.png.clone(),
-            status::Ok, WebInterface::contentFromFile("Files/icon.png"))
-        )) );
+        let files=vec!["background.png",  "icon_map.png",  "icon_mod.png",
+                       "icon.png",  "icon_run.png",  "icon_settings.png",
+                       "icon_stop.png",  "icon_x.png"];
 
-        let router_webInterface=webInterface.clone();
-        router.get("/background.png", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.png.clone(),
-            status::Ok, WebInterface::contentFromFile("Files/background.png"))
-        )) );
+        for f in files.iter() {
+            let url=format!("/{}",f);
+            let fileName=format!("Files/{}",f);
+            let router_webInterface=webInterface.clone();
+            router.get(url.as_str(), move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.png.clone(),
+                status::Ok, WebInterface::contentFromFile(fileName.as_str()))
+            )) );
+        }
 
         let router_webInterface=webInterface.clone();
         router.get("/login", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
@@ -134,8 +238,8 @@ impl WebInterface{
     }
 
     fn contentFromFile( fileName:&str ) -> String {
-        use std::fs::File;
-        use std::io;
+        //use std::fs::File;
+        //use std::io;
 
         let mut file=match File::open(fileName) {
             Ok ( f ) => f,
