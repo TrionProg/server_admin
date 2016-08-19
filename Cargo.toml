@@ -11,3 +11,9 @@ rustc-serialize = "*"
 zip = "0.1"
 curl = "*"
 chrono = "*"
+sodiumoxide = { git = "https://github.com/dnaq/sodiumoxide" }
+serde_json = "*"
+serde= "*"
+
+[replace]
+"libsodium-sys:0.0.10" = { git = "https://github.com/dnaq/sodiumoxide/" }

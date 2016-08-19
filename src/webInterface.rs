@@ -204,6 +204,26 @@ impl WebInterface{
             status::Ok, WebInterface::contentFromFile("Files/loginAnswer.txt"))
         )) );
 
+        let router_webInterface=webInterface.clone();
+        router.get("/crypto", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.html.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/Crypto/index.html"))
+        )) );
+
+        let router_webInterface=webInterface.clone();
+        router.get("/sodium.js", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/Crypto/sodium.js"))
+        )) );
+
+        let router_webInterface=webInterface.clone();
+        router.get("/libsodium.js", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/Crypto/libsodium.js"))
+        )) );
+
+        let router_webInterface=webInterface.clone();
+        router.get("/libsodium-wrappers.js", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
+            status::Ok, WebInterface::contentFromFile("Files/Crypto/libsodium-wrappers.js"))
+        )) );
+
         /*
 
         router.get("/", move |r: &mut Request| hello_world(r, &greeting.lock().unwrap()));

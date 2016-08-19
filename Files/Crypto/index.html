@@ -1,0 +1,209 @@
+<script>
+
+window.sodium = { onload: function(sodium) {
+/*
+ //alert(sodium.to_hex(sodium.crypto_generichash(64, 'test')));
+ var ciphertext=[252,93,81,147,99,202,93,212,61,53,92,38,103,226,97,211,47,169,203,96,10,120,154,127,245];
+ var nonce=[29,129,130,130,18,41,152,233,28,164,208,216,29,20,140,224,2,68,113,74,112,232,45,187];
+ var ourpk=[84,147,233,119,113,51,168,78,194,155,250,183,24,140,229,83,47,202,77,56,197,135,0,151,67,118,212,113,249,203,2,76];
+ var theirsk=[30,177,141,148,202,39,53,142,110,159,230,1,184,186,151,60,5,84,75,151,168,255,163,90,75,54,133,90,68,95,155,185];
+
+ //crypto_box_open_easy(decrypted, ciphertext, CIPHERTEXT_LEN, nonce,
+//alice_publickey, bob_secretkey)
+alert( sodium.crypto_box_open_easy(ciphertext, nonce, ourpk, theirsk, "") );
+
+// var decrypted[MESSAGE_LEN];
+
+ //let their_plaintext = box_::open(ciphertext, nonce, ourpk, theirsk);
+
+ /*
+ for(var v in sodium){
+       console.log(v);
+   }
+   */
+
+   // libsodium wrappers is used for crypto
+   // Generate Assymetric Key pairs
+   var privKey = new Uint8Array([30,177,141,148,202,39,53,142,110,159,230,1,184,186,151,60,5,84,75,151,168,255,163,90,75,54,133,90,68,95,155,185]);//libsodium.crypto_box_keypair();
+   // Generate random Nonce
+   var nonce = new Uint8Array([29,129,130,130,18,41,152,233,28,164,208,216,29,20,140,224,2,68,113,74,112,232,45,187]);//libsodium.randombytes_buf(libsodium.crypto_box_NONCEBYTES);;
+
+   // The encrypted symmetric key recieved as base64 string is converted to Uint8Array
+   var cipherText = new Uint8Array([252,93,81,147,99,202,93,212,61,53,92,38,103,226,97,211,47,169,203,96,10,120,154,127,245]);
+   // The asymmetric public key of launcher recieved as base64 string is converted to Uint8Array
+   var publicKey = new Uint8Array([84,147,233,119,113,51,168,78,194,155,250,183,24,140,229,83,47,202,77,56,197,135,0,151,67,118,212,113,249,203,2,76]);
+   // the cipher message is decrypted using the assymetric private key of application and the public key of launcher
+   var data = sodium.crypto_box_open_easy(cipherText, nonce, publicKey, privKey);
+
+   var str="";
+   for(i=0;i<10;i++){
+       str+=String.fromCharCode(data[i]);
+   }
+
+   alert( str );
+/*
+   // The first segment of the data will have the symmetric key
+   var symetricKey = data.slice(0, libsodium.crypto_secretbox_KEYBYTES);
+   // The second segment of the data will have the nonce to be used
+   var symetricNonce = data.slice(libsodium.crypto_secretbox_KEYBYTES);
+   // Authorisation token
+   var token = response.body.token;
+   // List of persmissions approved by the user
+   var permissions = response.body.permissions;
+   // Creating the payload
+   var filePath = '/private/snapshot_blob.bin';
+   var isPathShared = false;
+
+   // Change if the query parameters are to be sent
+   var appendQueryParams = false;
+
+   // Preparing the request options with the auth token
+   var request = {
+   url: 'http://localhost:8100/nfs/file/' + encodeURIComponent(filePath) + '/' + isPathShared,
+   auth: {
+   bearer: token
+   }
+   };
+
+   // send query parameters
+   // The query parameters are encrypted
+   if (appendQueryParams) {
+   var queryParams = 'offset=0';
+   request.url += '?';
+   var encryptedParams = libsodium.crypto_secretbox_easy(queryParams, symmetricNonce, symmetricKey).toString('base64');
+   request.url += encryptedParams;
+   }
+
+   // Handling the response
+   var onResponse = function(err, res, body) {
+   if (err) {
+   return console.log('Err:', err);
+   }
+   if (res.statusCode === 400) {
+   return console.log('Bad request');
+   }
+   if (res.statusCode === 401) {
+   return console.log('Unauthorised');
+   }
+   body = new Buffer(body, 'base64');
+   // Decrypt the file content
+   var decryptedData = libsodium.crypto_secretbox_open_easy(new Uint8Array(body), symmetricNonce, symmetricKey);
+   console.log('File Content:', new Buffer(decryptedData).toString());
+   };
+   // Send get file request
+   httpRequest.get(request, onResponse);
+   };
+
+   // Sending authorisation request
+   httpRequest.post(request, onAuthResponse);
+*/
+    /*
+
+    var libsodium = require('libsodium-wrappers');
+var httpRequest = require('request');
+
+// Generate Assymetric Key pairs
+var assymetricKeys = libsodium.crypto_box_keypair();
+// Generate random Nonce
+var nonce = libsodium.randombytes_buf(libsodium.crypto_box_NONCEBYTES);;
+
+// Creating the authorisation request payload
+var payload = {
+app: {
+name: 'Demo App',
+version: '0.0.1',
+vendor: 'maidsafe',
+id: 'org.maidsafe.demo'
+},
+// Converting assymetric public key to base64 string
+publicKey: new Buffer(assymetricKeys.publicKey).toString('base64'),
+// Converting nonce to base64 string
+nonce: new Buffer(nonce).toString('base64'),
+// List of permissions requested
+permissions: ['SAFE_DRIVE_ACCESS']
+};
+
+// Preparing the request object
+var request = {
+url: 'http://localhost:8100/auth',
+headers: {
+'Content-Type': 'application/json'
+},
+json: payload
+};
+
+// Handle the response recieved from the launcher
+var onAuthResponse = function(err, response) {
+if (err) {
+throw err;
+}
+if (response.statusCode !== 200) {
+throw new Error('Failed with error code: ' + response.statusCode);
+}
+// The encrypted symmetric key recieved as base64 string is converted to Uint8Array
+var cipherText = new Uint8Array(new Buffer(response.body.encryptedKey, 'base64'));
+// The asymmetric public key of launcher recieved as base64 string is converted to Uint8Array
+var publicKey = new Uint8Array(new Buffer(response.body.publicKey, 'base64'));
+// the cipher message is decrypted using the assymetric private key of application and the public key of launcher
+var data = libsodium.crypto_box_open_easy(cipherText, nonce, publicKey, assymetricKeys.privateKey);
+// The first segment of the data will have the symmetric key
+var symetricKey = data.slice(0, libsodium.crypto_secretbox_KEYBYTES);
+// The second segment of the data will have the nonce to be used
+var symetricNonce = data.slice(libsodium.crypto_secretbox_KEYBYTES);
+// Authorisation token
+var token = response.body.token;
+// List of persmissions approved by the user
+var permissions = response.body.permissions;
+// Creating the payload
+var filePath = '/private/snapshot_blob.bin';
+var isPathShared = false;
+
+// Change if the query parameters are to be sent
+var appendQueryParams = false;
+
+// Preparing the request options with the auth token
+var request = {
+url: 'http://localhost:8100/nfs/file/' + encodeURIComponent(filePath) + '/' + isPathShared,
+auth: {
+bearer: token
+}
+};
+
+// send query parameters
+// The query parameters are encrypted
+if (appendQueryParams) {
+var queryParams = 'offset=0';
+request.url += '?';
+var encryptedParams = libsodium.crypto_secretbox_easy(queryParams, symmetricNonce, symmetricKey).toString('base64');
+request.url += encryptedParams;
+}
+
+// Handling the response
+var onResponse = function(err, res, body) {
+if (err) {
+return console.log('Err:', err);
+}
+if (res.statusCode === 400) {
+return console.log('Bad request');
+}
+if (res.statusCode === 401) {
+return console.log('Unauthorised');
+}
+body = new Buffer(body, 'base64');
+// Decrypt the file content
+var decryptedData = libsodium.crypto_secretbox_open_easy(new Uint8Array(body), symmetricNonce, symmetricKey);
+console.log('File Content:', new Buffer(decryptedData).toString());
+};
+// Send get file request
+httpRequest.get(request, onResponse);
+};
+
+// Sending authorisation request
+httpRequest.post(request, onAuthResponse);
+
+*/
+
+}};
+</script>
+hello
+<script src="sodium.js" async defer></script>
