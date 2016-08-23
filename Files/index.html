@@ -123,40 +123,34 @@
 
                         var fields=body.split(";\n");
 
-                        console.log(fields.length);
-
                         for(i=0;i<fields.length;i++){
                             var field=fields[i];
 
-                            var colonPos=fields.indexOf(":");
+                            var colonPos=field.indexOf(":");
                             if( colonPos>0 ){
-                                var fieldName=field.slice(0, colonPos-1);
-                                var fieldValue=field.slice(colonPos);
+                                var fieldName=field.slice(0, colonPos);
+                                var fieldValue=field.slice(colonPos+1);
 
-                                if(fieldName=="admin key"){
+                                if( fieldName=="admin key" ){
                                     adminKey=fieldValue;
+                                }else if( fieldName=="log" ){
+                                    document.getElementById("consoleLog").innerHTML+=fieldValue+"\n";
                                 }
-
-                                console.log(fieldName + ")(" + fieldValue);
                             }
                         }
 
-                        if( fields.length>1 ){
-                            if( newsTimerInterval!=50 ){
-                                newsTimerInterval=50;
-                                clearInterval(newsTimer);
-                                newsTimer=setInterval(function() {
-                                    checkNews();
-                                }, newsTimerInterval);
-                            }
+                        if( fields.length>2 ){
+                            newsTimerInterval=50;
+                            clearInterval(newsTimer);
+                            newsTimer=setInterval(function() {
+                                checkNews();
+                            }, newsTimerInterval);
                         }else{
-                            if( newsTimerInterval!=200 ){
-                                newsTimerInterval=200;
-                                clearInterval(newsTimer);
-                                newsTimer=setInterval(function() {
-                                    checkNews();
-                                }, newsTimerInterval);
-                            }
+                            newsTimerInterval=200;
+                            clearInterval(newsTimer);
+                            newsTimer=setInterval(function() {
+                                checkNews();
+                            }, newsTimerInterval);
                         }
                     }else{
                         console.log( xhr.status + ': ' + xhr.statusText + ':' + xhr.responseText );
