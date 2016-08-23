@@ -10,6 +10,9 @@ extern crate sodiumoxide;
 extern crate serde_json;
 extern crate serde;
 extern crate core;
+extern crate bincode;
+extern crate time;
+//extern crate bodyparser;
 
 mod log;
 mod config;
@@ -107,34 +110,6 @@ fn main(){
         None=>println!("not"),
     }
     */
-
-    use sodiumoxide::crypto::box_;
-    //use serde::{Serialize, Deserialize};
-    //use serde_json::ser::Serializer;
-    //use sodiumoxide::crypto::sign;
-
-    let (ourpk, oursk) = box_::gen_keypair();
-    // normally theirpk is sent by the other party
-    let (theirpk, theirsk) = box_::gen_keypair();
-    let nonce = box_::gen_nonce();
-    let plaintext = b"some data";
-    let ciphertext = box_::seal(plaintext, &nonce, &theirpk, &oursk);
-    let their_plaintext = box_::open(&ciphertext, &nonce, &ourpk,
-    &theirsk).unwrap();
-
-    let ourpks = serde_json::to_string(&ourpk).unwrap();
-    let oursks = serde_json::to_string(&oursk).unwrap();
-    let theirpks = serde_json::to_string(&theirpk).unwrap();
-    let theirsks = serde_json::to_string(&theirsk).unwrap();
-    let ciphertexts = serde_json::to_string(&ciphertext).unwrap();
-    let nonces = serde_json::to_string(&nonce).unwrap();
-    println!("ourpk={};",ourpks);
-    println!("oursk={};",oursks);
-    println!("theirpk={};",theirpks);
-    println!("theirsk={};",theirsks);
-    println!("ciphertext={};",ciphertexts);
-    println!("nonce={};",nonces);
-    //assert!(plaintext == &their_plaintext[..]);
 
     //===================ConsoleInterface============
     consoleInterface::readInput( appData.clone() );

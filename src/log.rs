@@ -34,21 +34,28 @@ impl Log{
         })
     }
 
+    pub fn write(&self, text:&str){
+        let mut logFile=self.logFile.lock().unwrap();
+        logFile.write_all(text.as_bytes());
+        logFile.write("\n".as_bytes());
+    }
+
     pub fn print(&self, text:String){
         {
             let mut logFile=self.logFile.lock().unwrap();
             logFile.write_all(text.as_bytes());
             logFile.write("\n".as_bytes());
         }
-        //self.logFile.lock().unwrap().write_all(text.as_bytes());
-
 
         match *self.webInterface.read().unwrap(){
             Some( ref wi ) => {
-                if *wi.consoleIsActive.read().unwrap() {
-                    let mut consoleText=wi.consoleText.write().unwrap();
-                    consoleText.push_str(text.as_str());
-                    consoleText.push('\n');
+                match *wi.adminSession.write().unwrap() {
+                    Some( ref mut adminSession ) => {
+                        adminSession.news.push_str("log:");
+                        adminSession.news.push_str(text.as_str());
+                        adminSession.news.push_str(";\n");
+                    },
+                    None => {},
                 }
             },
             None=>{},

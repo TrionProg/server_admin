@@ -75,10 +75,95 @@
             }
 
             <?mainMenu.css/>
-            
+
             <?errorMenu.css/>
         </style>
+        <script src="sodium.js" async defer></script>
         <script>
+            var cryptoLibIsReady=false;
+            window.sodium = { onload: function(sodium) {
+                cryptoLibIsReady=true;
+            }};
+
+            var sessionKey="";
+            var sessionNonce="";
+
+            var answerKey="";
+            var answerNonce="";
+
+            var adminKey="";
+            var newsTimer="";
+            var newsTimerInterval=200;
+
+            if (!String.prototype.format) {
+                String.prototype.format = function() {
+                    var args = arguments;
+                    return this.replace(/{(\d+)}/g, function(match, number) {
+                        return typeof args[number] != 'undefined'
+                        ? args[number]
+                        : match
+                        ;
+                    });
+                };
+            }
+
+            function checkNews(){
+                var sodium=window.sodium;
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/arenews', true);
+                xhr.send(adminKey);
+
+                xhr.onreadystatechange = function() {
+                    if( xhr.readyState != 4 ) return;
+
+                    if( xhr.status==200 ){
+                        var cipherBody=new Uint8Array( sodium.from_base64(xhr.responseText) );
+                        body=sodium.crypto_secretbox_open_easy(cipherBody, responseNonce, responseKey, "text");
+
+                        var fields=body.split(";\n");
+
+                        console.log(fields.length);
+
+                        for(i=0;i<fields.length;i++){
+                            var field=fields[i];
+
+                            var colonPos=fields.indexOf(":");
+                            if( colonPos>0 ){
+                                var fieldName=field.slice(0, colonPos-1);
+                                var fieldValue=field.slice(colonPos);
+
+                                if(fieldName=="admin key"){
+                                    adminKey=fieldValue;
+                                }
+
+                                console.log(fieldName + ")(" + fieldValue);
+                            }
+                        }
+
+                        if( fields.length>1 ){
+                            if( newsTimerInterval!=50 ){
+                                newsTimerInterval=50;
+                                clearInterval(newsTimer);
+                                newsTimer=setInterval(function() {
+                                    checkNews();
+                                }, newsTimerInterval);
+                            }
+                        }else{
+                            if( newsTimerInterval!=200 ){
+                                newsTimerInterval=200;
+                                clearInterval(newsTimer);
+                                newsTimer=setInterval(function() {
+                                    checkNews();
+                                }, newsTimerInterval);
+                            }
+                        }
+                    }else{
+                        console.log( xhr.status + ': ' + xhr.statusText + ':' + xhr.responseText );
+                    }
+                }
+            }
+
             <?login.js/>
             <?mainMenu.js/>
 

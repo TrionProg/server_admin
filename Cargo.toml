@@ -13,7 +13,9 @@ curl = "*"
 chrono = "*"
 sodiumoxide = { git = "https://github.com/dnaq/sodiumoxide" }
 serde_json = "*"
-serde= "*"
+serde = "*"
+bincode = "*"
+time = "0.1"
 
 [replace]
 "libsodium-sys:0.0.10" = { git = "https://github.com/dnaq/sodiumoxide/" }

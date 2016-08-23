@@ -1,5 +1,9 @@
  var loginMenuIsOpen=false;
 
+ var loginKeysB="";
+ var loginPublicKeyA="";
+ var loginNonce="";
+
  function openLoginMenu(){
      if(! loginMenuIsOpen ){
          loginMenuIsOpen=true;
@@ -61,14 +65,6 @@
  }
 
  function checkLogin(){
-     var loginButton=document.getElementById("loginButton");
-
-     loginButton.onclick="";
-     loginButton.onmouseover="";
-     loginButton.onmouseout="";
-
-     loginButton.style.borderColor="#252572";
-     loginButton.style.backgroundColor="#385295";
      /*
      loginButton.onclick="";
      loginButton.innerHTML="<div class=\"loginProgressBackground\"><div id=\"loginProgress\" class=\"loginProgress\"></div></div>";
@@ -76,23 +72,120 @@
      loginProgressMoveRight();
      */
 
-     var xhr = new XMLHttpRequest();
-     xhr.open('GET', '/login', true);
-     xhr.send();
+     if( cryptoLibIsReady ){
+         //===================Disactive Login Button==================
+         var loginButton=document.getElementById("loginButton");
 
-     xhr.onreadystatechange = function() {
-         if (xhr.readyState != 4) return;
+         loginButton.onclick="";
+         loginButton.onmouseover="";
+         loginButton.onmouseout="";
 
-         if (xhr.status != 200) {
-             console.log( xhr.status + ': ' + xhr.statusText );
-             loginError("Connection problems");
-         } else {
-             if (xhr.responseText=="accepted\n") {
-                 loginSuccess();
+         loginButton.style.borderColor="#252572";
+         loginButton.style.backgroundColor="#385295";
+
+         //====================Login process==========================
+         var sodium=window.sodium;
+
+         loginKeysB = sodium.crypto_box_keypair();
+         loginNonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
+
+         var requestBody="id:{0}\npublic key b:{1}\nnonce:{2}\n".format(
+             "0",
+             sodium.to_base64(loginKeysB.publicKey),
+             sodium.to_base64(loginNonce)
+         );
+
+         var xhr_step1 = new XMLHttpRequest();
+         xhr_step1.open('POST', '/login', true);
+         xhr_step1.send(requestBody);
+
+         xhr_step1.onreadystatechange = function() {
+             if( xhr_step1.readyState != 4 ) return;
+
+             if( xhr_step1.status==200 ){
+                 var idAndKey=xhr_step1.responseText.split(";");
+                 loginId=idAndKey[0];
+                 loginPublicKeyA=new Uint8Array( sodium.from_base64(idAndKey[1]) );
+
+                 requestKey=sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
+                 requestNonce=sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+
+                 responseKey=sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
+                 responseNonce=sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+
+                 var jsonData=JSON.stringify({
+                     password:document.getElementById("loginPassword").value,
+                     requestKey:sodium.to_base64(requestKey),
+                     requestNonce:sodium.to_base64(requestNonce),
+                     responseKey:sodium.to_base64(responseKey),
+                     responseNonce:sodium.to_base64(responseNonce)
+                 });
+
+                 var cipherData=sodium.crypto_box_easy(jsonData,loginNonce,loginPublicKeyA,loginKeysB.privateKey,"base64");
+
+                 var requestBody=requestBody="id:{0}\ncipher data:{1}\n".format(
+                     loginId,
+                     cipherData
+                 );
+
+                 console.log(requestBody);
+
+                 var xhr_step2 = new XMLHttpRequest();
+                 xhr_step2.open('POST', '/login', true);
+                 xhr_step2.send(requestBody);
+
+                 xhr_step2.onreadystatechange = function() {
+                     if( xhr_step2.readyState != 4 ) return;
+
+                     if( xhr_step2.status==200 ){
+                         console.log(xhr_step2.responseText);
+                         var cipherAdminKey=new Uint8Array( sodium.from_base64(xhr_step2.responseText) );
+                         adminKey=sodium.crypto_secretbox_open_easy(cipherAdminKey, responseNonce, responseKey, "text");
+
+                         loginKeysB="";
+                         loginPublicKeyA="";
+                         loginNonce="";
+
+                         loginSuccess();
+                     }else{
+                         var msg=xhr_step2.responseText;
+
+                         console.log( xhr_step2.status + ': ' + xhr_step2.statusText + ':' + msg );
+
+                         if( msg.length > 0 && msg[0]=='2' ){
+                             loginError(msg.slice(1));
+                         }else if( msg.length > 0 && msg[0]=='3' ){
+                             document.getElementById("errorsList").value=msg.slice(1)+".\nPlease, try again.";
+                             openErrorMenu("Error");
+                         }else{
+                             document.getElementById("errorsList").value="Error has been occurred.\nPlease, try again.\n\nSee log for details.";
+                             openErrorMenu("Error");
+                         }
+
+                         setupLoginButton();
+                     }
+                }
              }else{
-                 loginError(xhr.responseText);
+                 var msg=xhr_step1.responseText;
+
+                 console.log( xhr_step1.status + ': ' + xhr_step1.statusText + ':' + msg );
+
+                 if( msg.length > 0 && msg[0]=='2' ){
+                     loginError(msg.slice(1));
+                 }else if( msg.length > 0 && msg[0]=='3' ){
+                     document.getElementById("errorsList").value=msg.slice(1)+".\nPlease, try again.";
+                     openErrorMenu("Error");
+                 }else{
+                     document.getElementById("errorsList").value="Error has been occurred.\nPlease, try again.\n\nSee log for details.";
+                     openErrorMenu("Error");
+                 }
+
+                 setupLoginButton();
              }
          }
+     }else{
+         document.getElementById("errorsList").value="Crypto library sodium.js is not ready to use yet.\nPlease, wait or reload the page";
+         openErrorMenu("Error");
      }
  }
 
@@ -139,4 +232,9 @@
 
          clearInterval(timer);
      }, 1000);
+
+     newsTimerInterval=200;
+     newsTimer=setInterval(function() {
+         checkNews();
+     }, newsTimerInterval);
  }

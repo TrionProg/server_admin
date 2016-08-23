@@ -2,12 +2,20 @@
 use std::thread;
 use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
 
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::btree_map::Entry::Occupied as BTreeMapOccupied;
+use std::collections::btree_map::Entry::Vacant as BTreeMapVacant;
+use std::collections::hash_map::Entry::Occupied as HashMapOccupied;
+use std::collections::hash_map::Entry::Vacant as HashMapVacant;
+
 use appData::AppData;
 
 use iron::prelude::*;
 use iron::status;
 use router::Router;
 use rustc_serialize::json;
+use rustc_serialize::base64::{ToBase64, FromBase64, STANDARD};
 
 use iron::error::HttpError;
 use iron::Listening;
@@ -19,14 +27,46 @@ use std::error::Error;
 use std::fs::File;
 use std::io;
 
+use time;
+
+use sodiumoxide::crypto::box_;
+use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::PublicKey as Box_PublicKey;
+use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::SecretKey as Box_SecretKey;
+use sodiumoxide::crypto::box_::curve25519xsalsa20poly1305::Nonce as Box_Nonce;
+use sodiumoxide::crypto::secretbox;
+use sodiumoxide::crypto::secretbox::xsalsa20poly1305::Key as SecretBox_Key;
+use sodiumoxide::crypto::secretbox::xsalsa20poly1305::Nonce as SecretBox_Nonce;
+use sodiumoxide::randombytes::randombytes_into;
+use sodiumoxide::crypto::pwhash;
+
+struct LoginingClient{
+    publicKeyB:     Box_PublicKey,
+    secretKeyA:     Box_SecretKey,
+    nonce:          Box_Nonce,
+    time:           time::Timespec,
+}
+
+pub struct AdminSession{
+    adminKey:            String,
+    time:           time::Timespec,
+    requestKey:     SecretBox_Key,
+    requestNonce:   SecretBox_Nonce,
+    responseKey:    SecretBox_Key,
+    responseNonce:  SecretBox_Nonce,
+    pub news:           String,
+}
+
 pub struct WebInterface{
     pub appData:Weak<AppData>,
     files:Files,
     mimeTypes:MimeTypes,
     listener:Mutex<Option<Listening>>,
-    pub consoleIsActive:RwLock<bool>,
-    pub consoleText:RwLock<String>,
+
+    loginingClients:RwLock<HashMap<u64, LoginingClient>>,
+    pub adminSession:RwLock<Option<AdminSession>>,
 }
+
+const loginingClientsLimit:usize=1024;
 
 struct Files{
     index:RwLock<String>
@@ -161,8 +201,8 @@ impl WebInterface{
             files:files,
             mimeTypes:mimeTypes,
             listener:Mutex::new(None),
-            consoleIsActive:RwLock::new(false),
-            consoleText:RwLock::new(String::with_capacity(256)),
+            loginingClients:RwLock::new(HashMap::new()),
+            adminSession:RwLock::new(None),
         });
 
         match WebInterface::runHTTPListener( appData, webInterface){
@@ -215,36 +255,31 @@ impl WebInterface{
         )) );
 
         let router_webInterface=webInterface.clone();
-        router.get("/libsodium.js", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
-            status::Ok, WebInterface::contentFromFile("Files/Crypto/libsodium.js"))
-        )) );
+        router.post("/login", move |r: &mut Request|
+            match WebInterface::login(r,&router_webInterface) {
+                Ok ( msg ) => Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::Ok, msg) )),
+                Err( msg ) => {
+                    if msg.chars().next().or(Some('0')).unwrap() == '0' {
+                         /*print login log*/ println!("{}",msg);
+                         Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::BadRequest, String::from("Error")) ))
+                    }else{
+                        Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::BadRequest, msg) ))
+                    }
+                }
+            }
+        );
 
         let router_webInterface=webInterface.clone();
-        router.get("/libsodium-wrappers.js", move |r: &mut Request| Ok(Response::with((router_webInterface.mimeTypes.text.clone(),
-            status::Ok, WebInterface::contentFromFile("Files/Crypto/libsodium-wrappers.js"))
-        )) );
-
-        /*
-
-        router.get("/", move |r: &mut Request| hello_world(r, &greeting.lock().unwrap()));
-        router.post("/set", move |r: &mut Request| set_greeting(r, &mut greeting_clone.lock().unwrap()));
-
-        fn hello_world(_: &mut Request, greeting:&Greeting) -> IronResult<Response> {
-            let greeting = Greeting { msg: "Hello, World".to_string() };
-            let payload = json::encode(&greeting).unwrap();
-            Ok(Response::with((status::Ok, payload)))
-        }
-
-        // Receive a message by POST and play it back.
-        fn set_greeting(request: &mut Request) -> IronResult<Response> {
-            let mut payload = String::new();
-            request.body.read_to_string(&mut payload);
-            let request: Greeting = json::decode(payload.as_ref()).unwrap();
-            let greeting = Greeting { msg: request.msg };
-            let payload = json::encode(&greeting).unwrap();
-            Ok(Response::with((status::Ok, payload)))
-        }
-        */
+        router.post("/arenews", move |r: &mut Request|
+            match WebInterface::checkNews(r,&router_webInterface) {
+                Ok ( responseCipherBase64 ) =>
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::Ok, responseCipherBase64) )),
+                Err( msg ) => {
+                    router_webInterface.appData.upgrade().unwrap().log.write(msg);
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::BadRequest, String::from("Error")) ))
+                }
+            }
+        );
 
         let address=format!("localhost:{}",appData.serverConfig.server_adminPort);
         let listener=try!(Iron::new(router).http(address.as_str()));
@@ -255,6 +290,217 @@ impl WebInterface{
         *appData.log.webInterface.write().unwrap()=Some(webInterface);
 
         Ok( () )
+    }
+
+    fn randomU64() -> u64{
+        use std::mem;
+        let mut a=[0;8];
+        randombytes_into(&mut a);
+        unsafe{
+            mem::transmute::<[u8; 8], u64>(a)
+        }
+    }
+
+    fn generateLoginingClient ( &self, fields:BTreeMap<String, String> ) -> Result<String, String> {
+        loop{
+            let id=WebInterface::randomU64();
+
+            match self.loginingClients.write().unwrap().entry(id.clone()) {
+                HashMapVacant( e ) => {
+                    let loginPublicKeyB={
+                        let keyBase64=try!( fields.get("public key b").ok_or( String::from("0Public key b field does not exists") ) );
+                        let keyBytes=try!( keyBase64.from_base64().or( Err(String::from("0Can not decode public key b")) ) );
+                        try!( Box_PublicKey::from_slice(&keyBytes).ok_or( String::from("0Can not decode public key b") ) )
+                    };
+
+                    let loginNonce={
+                        let nonceBase64=try!( fields.get("nonce").ok_or( String::from("0Nonce field does not exists") ) );
+                        let nonceBytes=try!( nonceBase64.from_base64().or( Err(String::from("0Can not decode nonce")) ) );
+                        try!( Box_Nonce::from_slice(&nonceBytes).ok_or( String::from("0Can not decode nonce") ) )
+                    };
+
+                    let (publicKeyA, secretKeyA) = box_::gen_keypair();
+
+                    let loginingClient=LoginingClient{
+                        publicKeyB:     loginPublicKeyB,
+                        secretKeyA:     secretKeyA,
+                        nonce:          loginNonce,
+                        time:           time::get_time(),
+                    };
+
+                    e.insert(loginingClient);
+
+                    let publicKeyABase64=publicKeyA[..].to_base64(STANDARD);
+
+                    return Ok( format!("{};{}",id,publicKeyABase64) );
+                },
+                HashMapOccupied( e ) => {},
+            }
+        }
+    }
+
+    fn login( req: &mut Request, webInterface:&Arc< WebInterface > ) -> Result<String, String> {
+        if webInterface.adminSession.read().unwrap().is_some() {
+            return Err( String::from("2Other admin is online") );
+        }
+
+        let fields=try!(WebInterface::parseRequestBody(req));
+
+        let id = {
+            let idStr=try!( fields.get("id").ok_or( String::from("0Id field does not exists") ) );
+            try!( idStr.parse::<u64>().or( Err( String::from("0Can not parse id")) ) )
+        };
+
+        if id==0 {
+            if webInterface.loginingClients.read().unwrap().len()>=loginingClientsLimit {
+                return Err( String::from("3DDOS attack! A lot of clients are trying to login"));
+            }
+
+            return webInterface.generateLoginingClient( fields );
+        }else{
+            let lc=try!( webInterface.loginingClients.write().unwrap().remove(&id).ok_or( String::from("0Id not found")) );
+
+            #[derive(RustcEncodable, RustcDecodable)]
+            struct LoginData{
+                password:String,
+                requestKey:String,
+                requestNonce:String,
+                responseKey:String,
+                responseNonce:String,
+            }
+
+            let data:LoginData={
+                let cipherDataBase64=try!( fields.get("cipher data").ok_or( String::from("0Cipher data field does not exists") ) );
+                let cipherDataBytes=try!( cipherDataBase64.from_base64().or( Err(String::from("0Can not decode cipher data")) ) );
+
+                let jsonDataBytes=try!( box_::open(&cipherDataBytes, &lc.nonce, &lc.publicKeyB, &lc.secretKeyA).or( Err(String::from("0Can not decode Data")) ) );
+                let jsonData=try!( String::from_utf8( jsonDataBytes).or( Err(String::from("0Login Data is not valid UTF-8")) ));
+
+                try!( json::decode(&jsonData).or( Err("0Can not decode Data")) )
+            };
+
+            let passwordHash=pwhash::pwhash(data.password.as_bytes(),
+                pwhash::OPSLIMIT_INTERACTIVE,
+                pwhash::MEMLIMIT_INTERACTIVE).unwrap();
+
+            let passwordHashBase64=passwordHash[..].to_base64(STANDARD);
+
+            if pwhash::pwhash_verify(&passwordHash, data.password.as_bytes()) {
+                let requestKeyBytes=try!( data.requestKey.from_base64().or( Err(String::from("0Can not decode request key")) ));
+                let requestNonceBytes=try!( data.requestNonce.from_base64().or( Err(String::from("0Can not decode request nonce")) ));
+                let responseKeyBytes=try!( data.responseKey.from_base64().or( Err(String::from("0Can not decode response key")) ));
+                let responseNonceBytes=try!( data.responseNonce.from_base64().or( Err(String::from("0Can not decode response nonce")) ));
+
+                let mut adminKey=[0;32];
+                randombytes_into(&mut adminKey);
+                let adminKeyBase64=adminKey.to_base64(STANDARD);
+
+                let adminSession=AdminSession{
+                    adminKey:adminKeyBase64,
+                    time:time::get_time(),
+                    requestKey:try!( SecretBox_Key::from_slice( &requestKeyBytes ).ok_or( String::from("0Can not decode request key")) ),
+                    requestNonce:try!( SecretBox_Nonce::from_slice( &requestNonceBytes ).ok_or( String::from("0Can not decode request nonce")) ),
+                    responseKey:try!( SecretBox_Key::from_slice( &responseKeyBytes ).ok_or( String::from("0Can not decode response key")) ),
+                    responseNonce:try!( SecretBox_Nonce::from_slice( &responseNonceBytes ).ok_or( String::from("0Can not decode response nonce")) ),
+                    news:String::with_capacity(1024),
+                };
+
+                let adminKeyCipher=secretbox::seal(adminSession.adminKey.as_bytes(), &adminSession.responseNonce, &adminSession.responseKey);
+                let adminKeyCipherBase64=adminKeyCipher.to_base64(STANDARD);
+
+                if webInterface.adminSession.read().unwrap().is_some() {
+                    return Err( String::from("2Other admin is online") );
+                }
+
+                *webInterface.adminSession.write().unwrap()=Some(adminSession);
+
+                Ok(adminKeyCipherBase64)
+            }else{
+                Err( String::from("2IncorrectPassword") )
+            }
+        }
+    }
+
+    fn checkNews<'a>( req: &mut Request, webInterface:&'a Arc< WebInterface > ) -> Result<String, &'a str> {
+        match *webInterface.adminSession.write().unwrap(){
+            Some( ref mut adminSession )=>{
+                let mut adminKeyBase64 = String::new();
+                try!( req.body.read_to_string(&mut adminKeyBase64).or( Err("Can not read body") ));
+
+                try!( webInterface.checkAdminSession( adminSession, adminKeyBase64 ));
+
+                let response=if adminSession.news.len()>0 {
+                    let r=format!("admin key:{};\n{}", &adminSession.adminKey, &adminSession.news);
+                    adminSession.news.clear();
+                    r
+                }else{
+                    format!("admin key:{};\n", &adminSession.adminKey)
+                };
+
+                let responseCipher=secretbox::seal(response.as_bytes(), &adminSession.responseNonce, &adminSession.responseKey);
+                Ok(responseCipher.to_base64(STANDARD))
+            },
+            None =>
+                Err("Not logined")
+        }
+    }
+
+    fn checkAdminSession<'a>( &'a self, adminSession:&mut AdminSession, adminKeyBase64:String ) -> Result<(),&'a str> {
+        if adminSession.adminKey!=adminKeyBase64 {
+            return Err("Admin keys mistmatch");
+        }
+
+        let mut adminKey=[0;32];
+        randombytes_into(&mut adminKey);
+        let adminKeyBase64=adminKey.to_base64(STANDARD);
+
+        adminSession.time=time::get_time();
+        adminSession.adminKey=adminKeyBase64;
+
+        Ok(())
+    }
+
+    fn parseRequestBody( req: &mut Request ) -> Result<BTreeMap<String, String>, String> {
+        let mut body = String::new();
+        match req.body.read_to_string(&mut body){
+            Ok ( _ ) => {},
+            Err( e ) => return Err( String::from("Error. Try again")),
+        }
+
+        let mut it=body.chars();
+        let mut fields=BTreeMap::new();
+
+        loop{
+            let mut fieldName=String::with_capacity(16);
+            loop{
+                match it.next(){
+                    Some(':') => break,
+                    Some( ch ) => fieldName.push(ch),
+                    None => {
+                        return if fieldName.len()==0 {
+                            Ok(fields)
+                        }else{
+                            Err( String::from( "Unexpected EOF of body" ) )
+                        }
+                    },
+                }
+            }
+
+            let mut fieldValue=String::with_capacity(32);
+
+            loop{
+                match it.next(){
+                    Some('\n') => break,
+                    Some( ch ) => fieldValue.push(ch),
+                    None => return Err( String::from( "Unexpected EOF of body" ) ),
+                }
+            }
+
+            match fields.entry(fieldName) {
+                BTreeMapVacant( e ) => {e.insert( fieldValue );},
+                BTreeMapOccupied( e ) => return Err( String::from( "Double field name" ) ),
+            }
+        }
     }
 
     fn contentFromFile( fileName:&str ) -> String {
@@ -282,7 +528,6 @@ impl WebInterface{
 
         appData.log.print(format!("[INFO]Closing web interface"));
 
-        *self.consoleIsActive.write().unwrap()=false;
         *appData.log.webInterface.write().unwrap()=None;
 
         match *self.listener.lock().unwrap() {

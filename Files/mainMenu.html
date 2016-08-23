@@ -33,16 +33,13 @@
     </div>
 
     <div id="consoleCloseButton" class="consoleCloseButton"></div>
-    <input id="consoleLog" type="textarea" readOnly="true" spellcheck="false" class="consoleLog"></input>
-    <input id="consoleInput" type="text" spellcheck="false" class="consoleInput"></input>
+    <input id="consoleLog" type="textarea" rows="10" readOnly="true" spellcheck="false" class="consoleLog"></input>
+    <input id="consoleInput" type="textarea" rows="1" spellcheck="false" class="consoleInput"></input>
 
     <button id="close">закрыть меню</button>
 </div>
 
-<button id="open">открыть меню</button>
-
 <script>
-    document.getElementById("open").onclick = function () { openMainMenu(); };
     document.getElementById("close").onclick = function () { closeMainMenu(); };
     document.getElementById("consoleCloseButton").onclick = function () { hideConsole(); };
     document.getElementById("consoleInput").onclick = function () { showConsole(); };

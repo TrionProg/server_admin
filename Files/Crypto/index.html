@@ -1,6 +1,21 @@
 <script>
 
 window.sodium = { onload: function(sodium) {
+
+    /*
+
+string.charAt(1) = [1]
+String.fromCharCode(76,78,78)
+string.prototype.length //длина строки
+estring.endsWithindexOf(str,index) -1 если нет вхождения
+str.slice(begin,[end])
+Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 5);
+*/
+
+console.log(window.sodium.output_formats);
+console.log(window.sodium.crypto_secretbox_easy);
+console.log(window.sodium.crypto_secretbox_open_easy);
+
 /*
  //alert(sodium.to_hex(sodium.crypto_generichash(64, 'test')));
  var ciphertext=[252,93,81,147,99,202,93,212,61,53,92,38,103,226,97,211,47,169,203,96,10,120,154,127,245];
@@ -21,7 +36,7 @@ alert( sodium.crypto_box_open_easy(ciphertext, nonce, ourpk, theirsk, "") );
        console.log(v);
    }
    */
-
+/*
    // libsodium wrappers is used for crypto
    // Generate Assymetric Key pairs
    var privKey = new Uint8Array([30,177,141,148,202,39,53,142,110,159,230,1,184,186,151,60,5,84,75,151,168,255,163,90,75,54,133,90,68,95,155,185]);//libsodium.crypto_box_keypair();
@@ -41,6 +56,7 @@ alert( sodium.crypto_box_open_easy(ciphertext, nonce, ourpk, theirsk, "") );
    }
 
    alert( str );
+ */
 /*
    // The first segment of the data will have the symmetric key
    var symetricKey = data.slice(0, libsodium.crypto_secretbox_KEYBYTES);
