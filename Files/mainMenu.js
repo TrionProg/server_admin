@@ -272,3 +272,41 @@ function serverButtonClick(){
             break;
     }
 }
+
+function inputCommand( event ){
+    if( event.keyCode == 13 ){
+        var input=document.getElementById("consoleInput").value;
+        document.getElementById("consoleInput").value="";
+
+        if( input=="exit" ){
+            //document.getElementById("consoleLog").value+="No no. You can not stop admin server remotely.\nYou should use \"logout\" command to do you guess =)\n\n\
+            //If you really want to stop admin server, you need stop it by command line interface on host, kill command, or contact with host administration\n";
+        }else{
+            var sodium=window.sodium;
+
+            var jsonData=JSON.stringify({
+                adminKey:adminKey,
+                source:"console",
+                commands:input
+            });
+
+            var cipherData=sodium.crypto_secretbox_easy(jsonData,requestNonce,requestKey,"base64");
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/cmd', true);
+            xhr.send(cipherData);
+
+            xhr.onreadystatechange = function() {
+                if( xhr.readyState != 4 ) return;
+
+                if( xhr.status==200 ){
+                    loadNews(xhr.responseText);
+                }else{
+                    console.log( xhr.status + ': ' + xhr.statusText + ':' + xhr.responseText );
+                }
+            }
+        }
+
+        return false;
+    }
+}

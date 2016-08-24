@@ -39,6 +39,8 @@ use sodiumoxide::crypto::secretbox::xsalsa20poly1305::Nonce as SecretBox_Nonce;
 use sodiumoxide::randombytes::randombytes_into;
 use sodiumoxide::crypto::pwhash;
 
+use commandProcessor;
+
 struct LoginingClient{
     publicKeyB:     Box_PublicKey,
     secretKeyA:     Box_SecretKey,
@@ -278,6 +280,18 @@ impl WebInterface{
             }
         );
 
+        let router_webInterface=webInterface.clone();
+        router.post("/cmd", move |r: &mut Request|
+            match WebInterface::processCommands(r,&router_webInterface) {
+                Ok ( msg ) =>
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::Ok, msg) )),
+                Err( msg ) => {
+                    router_webInterface.appData.upgrade().unwrap().log.write(msg);
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::BadRequest, String::from(msg)) ))
+                }
+            }
+        );
+
         let address=format!("localhost:{}",appData.serverConfig.server_adminPort);
         let listener=try!(Iron::new(router).http(address.as_str()));
 
@@ -424,8 +438,73 @@ impl WebInterface{
                 let mut adminKeyBase64 = String::new();
                 try!( req.body.read_to_string(&mut adminKeyBase64).or( Err("Can not read body") ));
 
-                try!( webInterface.checkAdminSession( adminSession, adminKeyBase64 ));
+                try!( webInterface.checkAdminSession( adminSession, &adminKeyBase64 ));
+            },
+            None =>
+                return Err("Not logined")
+        }
 
+        webInterface.readNews()
+    }
+
+    fn checkAdminSession<'a>( &'a self, adminSession:&mut AdminSession, adminKeyBase64:&String ) -> Result<(),&'a str> {
+        if adminSession.adminKey!=*adminKeyBase64 {
+            println!("{}:{}",adminSession.adminKey,adminKeyBase64);
+            return Err("Admin keys mistmatch");
+        }
+
+        let mut adminKey=[0;32];
+        randombytes_into(&mut adminKey);
+        let adminKeyBase64=adminKey.to_base64(STANDARD);
+
+        adminSession.time=time::get_time();
+        adminSession.adminKey=adminKeyBase64;
+
+        Ok(())
+    }
+
+    fn processCommands<'a>( req: & mut Request, webInterface:&'a Arc< WebInterface > ) -> Result<String, &'a str> {
+        let data=match *webInterface.adminSession.write().unwrap(){
+            Some( ref mut adminSession )=>{
+                #[derive(RustcEncodable, RustcDecodable)]
+                struct CmdData{
+                    adminKey:String,
+                    source:String,
+                    commands:String,
+                }
+
+                let data:CmdData={
+                    let mut cipherDataBase64 = String::new();
+                    try!( req.body.read_to_string(&mut cipherDataBase64).or( Err("Can not read body") ));
+                    let cipherDataBytes=try!( cipherDataBase64.from_base64().or( Err("Can not decode cipher data") ) );
+
+                    let jsonDataBytes=try!( secretbox::open(&cipherDataBytes, &adminSession.requestNonce, &adminSession.requestKey).or( Err("Can not decode Data") ) );
+                    let jsonData=try!( String::from_utf8( jsonDataBytes).or( Err("CmdData is not valid UTF-8") ));
+
+                    try!( json::decode(&jsonData).or( Err("Can not decode Data")) )
+                };
+
+                try!( webInterface.checkAdminSession( adminSession, &data.adminKey ));
+
+                data
+            },
+            None =>
+                return Err("Not logined")
+        };
+
+        let appData=webInterface.appData.upgrade().unwrap();
+
+        match commandProcessor::process( &appData, &data.commands ) {
+            Ok ( _ ) => {},
+            Err( e ) => appData.log.print(format!("[ERROR]{}", e)),//читает adminSession
+        }
+
+        webInterface.readNews()
+    }
+
+    fn readNews<'a>(&'a self) -> Result<String, &str> {
+        match *self.adminSession.write().unwrap(){
+            Some( ref mut adminSession )=>{
                 let response=if adminSession.news.len()>0 {
                     let r=format!("admin key:{};\n{}", &adminSession.adminKey, &adminSession.news);
                     adminSession.news.clear();
@@ -438,23 +517,8 @@ impl WebInterface{
                 Ok(responseCipher.to_base64(STANDARD))
             },
             None =>
-                Err("Not logined")
+                return Err("Not logined")
         }
-    }
-
-    fn checkAdminSession<'a>( &'a self, adminSession:&mut AdminSession, adminKeyBase64:String ) -> Result<(),&'a str> {
-        if adminSession.adminKey!=adminKeyBase64 {
-            return Err("Admin keys mistmatch");
-        }
-
-        let mut adminKey=[0;32];
-        randombytes_into(&mut adminKey);
-        let adminKeyBase64=adminKey.to_base64(STANDARD);
-
-        adminSession.time=time::get_time();
-        adminSession.adminKey=adminKeyBase64;
-
-        Ok(())
     }
 
     fn parseRequestBody<'a>( req: &'a mut Request ) -> Result<BTreeMap<String, String>, &'a str> {

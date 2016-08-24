@@ -34,7 +34,7 @@
 
     <div id="consoleCloseButton" class="consoleCloseButton"></div>
     <textarea id="consoleLog" resize="none" readOnly="true" spellcheck="false" class="consoleLog"></textarea>
-    <textarea id="consoleInput" resize="none" spellcheck="false" class="consoleInput"></textarea>
+    <textarea id="consoleInput" resize="none" spellcheck="false" class="consoleInput" onkeypress="return inputCommand(event)"></textarea>
 
     <button id="close">закрыть меню</button>
 </div>
