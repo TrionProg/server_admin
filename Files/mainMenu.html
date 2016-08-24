@@ -35,12 +35,9 @@
     <div id="consoleCloseButton" class="consoleCloseButton"></div>
     <textarea id="consoleLog" resize="none" readOnly="true" spellcheck="false" class="consoleLog"></textarea>
     <textarea id="consoleInput" resize="none" spellcheck="false" class="consoleInput" onkeypress="return inputCommand(event)"></textarea>
-
-    <button id="close">закрыть меню</button>
 </div>
 
 <script>
-    document.getElementById("close").onclick = function () { closeMainMenu(); };
     document.getElementById("consoleCloseButton").onclick = function () { hideConsole(); };
     document.getElementById("consoleInput").onclick = function () { showConsole(); };
     document.getElementById("logoutButton").onclick = function () { closeMainMenu(); openLoginMenu(); };

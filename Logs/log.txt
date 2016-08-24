@@ -6,15 +6,6 @@
 [INFO]Mods have been checked and activated
 [INFO]Starting web interface
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
-[ERROR]Unknown command: "gh" 
-gh
-[ERROR]Unknown command: "cxvcx" 
-cxvcx
-[ERROR]Unknown command: "dvdsvd" 
-dvdsvd
-[ERROR]Unknown command: "dsvdsvdsvsd" 
-dsvdsvdsvsd
-Admin keys mistmatch
 [INFO]Game server has been rant
 Time 1
 Time 2
@@ -28,8 +19,6 @@ Time 9
 Time 10
 Time 11
 Time 12
-[ERROR]Can not run game server : Can not create endpoint "ipc:///tmp/FromGS_1941.ipc" : Address already in use
-run
 Time 13
 Time 14
 Time 15
@@ -51,10 +40,117 @@ Time 30
 Time 31
 Time 32
 Time 33
+Time 34
+Time 35
+Time 36
+Time 37
+Time 38
+Time 39
+Time 40
+Time 41
+Time 42
+Time 43
+Time 44
+Time 45
+Time 46
+Time 47
+Time 48
+Time 49
+Time 50
+Time 51
+Time 52
+Time 53
+Time 54
+Time 55
+Time 56
+Time 57
+Time 58
+Time 59
+Time 60
+Time 61
+Time 62
+Time 63
+Time 64
+Time 65
+Time 66
+Time 67
+Time 68
+Time 69
+Time 70
+Time 71
+Time 72
+Time 73
+Time 74
+Time 75
+Time 76
+Time 77
+Time 78
+Time 79
+Time 80
+Time 81
+Time 82
+Time 83
+Time 84
+Time 85
+Time 86
+Time 87
+Time 88
+Time 89
+Time 90
+Time 91
+Time 92
+Time 93
+Time 94
+Time 95
+Time 96
+Time 97
+Time 98
+Time 99
+Time 100
+Time 101
+Time 102
+Time 103
+Time 104
+Time 105
+Time 106
+Time 107
+Time 108
+Time 109
+Time 110
+Time 111
+Time 112
+Time 113
+Time 114
+Time 115
+Time 116
+Time 117
+Time 118
+Time 119
+Time 120
+Time 121
+Time 122
+Time 123
+Time 124
+Time 125
+Time 126
+Time 127
+Time 128
+Time 129
+Time 130
+Time 131
+Time 132
+Time 133
+Time 134
+Time 135
+Time 136
+Time 137
+Time 138
+Time 139
+Time 140
+Time 141
+Time 142
 [INFO]Stopping game server
 [INFO]Game server has been stoped
 [INFO]Game server connection has been closed
-[ERROR]Unknown command: "jjkjjk" 
-jjkjjk
 [INFO]Closing web interface
 [INFO]Web interface has been closed

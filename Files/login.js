@@ -244,8 +244,5 @@ function loginStep2(responseText) {
          clearInterval(timer);
      }, 1000);
 
-     newsTimerInterval=200;
-     newsTimer=setInterval(function() {
-         checkNews();
-     }, newsTimerInterval);
+     dialogTimer=setTimeout(function() {ask();}, 100);
  }

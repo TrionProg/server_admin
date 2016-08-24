@@ -85,15 +85,7 @@
                 cryptoLibIsReady=true;
             }};
 
-            var sessionKey="";
-            var sessionNonce="";
-
-            var answerKey="";
-            var answerNonce="";
-
-            var adminKey="";
-            var newsTimer="";
-            var newsTimerInterval=200;
+            <?dialog.js/>
 
             if (!String.prototype.format) {
                 String.prototype.format = function() {
@@ -105,63 +97,6 @@
                         ;
                     });
                 };
-            }
-
-            function checkNews(){
-                var sodium=window.sodium;
-
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/arenews', true);
-                xhr.send(adminKey);
-
-                xhr.onreadystatechange = function() {
-                    if( xhr.readyState != 4 ) return;
-
-                    if( xhr.status==200 ){
-                        loadNews(xhr.responseText);
-                    }else{
-                        console.log( xhr.status + ': ' + xhr.statusText + ':' + xhr.responseText );
-                    }
-                }
-            }
-
-            function loadNews(responseText){
-                var cipherBody=new Uint8Array( sodium.from_base64(responseText) );
-                body=sodium.crypto_secretbox_open_easy(cipherBody, responseNonce, responseKey, "text");
-
-                var fields=body.split(";\n");
-
-                console.log("news"+fields.length);
-
-                for(i=0;i<fields.length;i++){
-                    var field=fields[i];
-
-                    var colonPos=field.indexOf(":");
-                    if( colonPos>0 ){
-                        var fieldName=field.slice(0, colonPos);
-                        var fieldValue=field.slice(colonPos+1);
-
-                        if( fieldName=="admin key" ){
-                            adminKey=fieldValue;
-                        }else if( fieldName=="log" ){
-                            document.getElementById("consoleLog").innerHTML+=fieldValue+"\n";
-                        }
-                    }
-                }
-
-                if( fields.length>2 ){
-                    newsTimerInterval=50;
-                    clearInterval(newsTimer);
-                    newsTimer=setInterval(function() {
-                        checkNews();
-                    }, newsTimerInterval);
-                }else{
-                    newsTimerInterval=200;
-                    clearInterval(newsTimer);
-                    newsTimer=setInterval(function() {
-                        checkNews();
-                    }, newsTimerInterval);
-                }
             }
 
             <?login.js/>
