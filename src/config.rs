@@ -365,49 +365,6 @@ impl Lexeme {
     }
 }
 
-/*
-pub struct Map<'a>{
-    name:&'a str,
-    params:&'a BTreeMap<String, ParameterValue>,
-}
-
-impl <'a>Map<'a> {
-    pub fn getMap( &'a self, name:&'a str ) -> Result<Map<'a>,String>{
-        match self.params.get( name ){
-            Some( pv ) => {
-                match *pv {
-                    ParameterValue::Map( ref params ) =>
-                        Ok(Map{name:name, params:params} ),
-                    _=>Err(format!("Parameter \"{}\" is not map", name)),
-                }
-            },
-            None=>Err(format!("Map \"{}\" has no parameter with name \"{}\"",self.name,name)),
-        }
-    }
-
-    pub fn getString( &'a self, name:&'a str ) -> Result<&'a String,String>{
-        match self.params.get( name ){
-            Some( pv ) => {
-                match *pv {
-                    ParameterValue::String( ref string ) =>
-                        Ok(string),
-                    _=>Err(format!("Parameter \"{}\" is not string", name)),
-                }
-            },
-            None=>Err(format!("Map \"{}\" has no parameter with name \"{}\"",self.name,name)),
-        }
-    }
-
-    pub fn getAs<T>( &'a self, name:&'a str ) -> Result<T,String> where T: FromStr{
-        let value=try!(self.getString(name));
-        match value.parse::<T>() {
-            Ok( p ) => Ok( p ),
-            Err( e )=>Err( format!("Can not parse parameter\"{}\"", name)),
-        }
-    }
-}
-*/
-
 pub fn parse<T,F>( text:&String, process:F) -> Result<T, String> where F:FnOnce(Map) -> Result<T, String>{
     let mut cur=TextCursor::new(text);
 

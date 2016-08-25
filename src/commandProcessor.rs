@@ -181,7 +181,7 @@ fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), Stri
                     }
                 }
                 */
-                "run" => {
+                "start" => {
 
                     /*
                     match nextLexeme( &mut it ){
@@ -189,16 +189,12 @@ fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), Stri
                         Lexeme::Word( ref map ) | Lexeme::String( ref map ) => {},
                     }
                     */
-                    match GameServer::run( appData.clone() ) {
-                        Ok ( _ ) => {appData.log.print(format!("[INFO]Game server has been rant")); Ok(())},
-                        Err( e ) => Err(format!("Can not run game server : {}", e)),
-                    }
+                    AppData::startGameServer(&appData);
+
+                    Ok(())
                 },
                 "stop" => {
-                    match *appData.gameServer.read().unwrap(){
-                        Some( ref gs ) => gs.stop(),
-                        None=>{},
-                    }
+                    AppData::stopGameServer(&appData);
 
                     Ok(())
                 },

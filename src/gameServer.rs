@@ -10,6 +10,27 @@ use nanomsg::{Socket, Protocol, Endpoint};
 
 use appData::AppData;
 
+#[derive(PartialEq, PartialOrd, Copy, Clone)]
+pub enum GameServerState{
+    Disactive,
+    Starting,
+    Working,
+    Stopping,
+    Error,
+}
+
+impl GameServerState{
+    pub fn print<'a>(&'a self) -> &'a str{
+        match *self{
+            GameServerState::Disactive => "disactive",
+            GameServerState::Starting  => "starting",
+            GameServerState::Working   => "working",
+            GameServerState::Stopping  => "stopping",
+            GameServerState::Error     => "error",
+        }
+    }
+}
+
 struct Channel{
     socket:Socket,
     endpoint:Endpoint,
@@ -75,7 +96,7 @@ pub struct GameServer{
 }
 
 impl GameServer {
-    pub fn run( appData:Arc<AppData> ) -> Result<(), String> {
+    pub fn start( appData:Arc<AppData> ) -> Result<(), String> {
         //===========================FromGS===========================
         let fromGSFileName=format!("ipc:///tmp/FromGS_{}.ipc",appData.serverConfig.server_gamePort);
         let mut fromGS=try!(Channel::newPull( &fromGSFileName ));
@@ -148,6 +169,10 @@ impl GameServer {
             let mut msg=String::with_capacity(1024);
             fromGS.socket.set_receive_timeout(1500);
 
+            appData.setGameServerState(GameServerState::Working,false);
+
+            let mut errorOccurred=false;
+
             while !{*gameServer.shouldClose.lock().unwrap()} {
                 match fromGS.socket.read_to_string(&mut msg){
                     Ok( _ ) => {
@@ -171,18 +196,24 @@ impl GameServer {
                                 appData.log.print( format!("[ERROR]FromGS read error : {}", e.description()) ),
                         }
 
+                        errorOccurred=true;
+
                         break;
                     },
                 }
-                
+
                 msg.clear();
             }
+
+            appData.setGameServerState(GameServerState::Stopping,errorOccurred);
 
             *gameServer.isRunning.lock().unwrap()=false;
 
             //Выжидает, когда gameServer-ом никто не пользуется, и делает недоступным его использование
             *appData.gameServer.write().unwrap()=None;
             appData.log.print(format!("[INFO]Game server connection has been closed"));
+
+            appData.setGameServerState(GameServerState::Disactive,errorOccurred);
             //GameServer разрушается автоматически
         });
     }

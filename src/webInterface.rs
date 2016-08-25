@@ -40,6 +40,7 @@ use sodiumoxide::randombytes::randombytes_into;
 use sodiumoxide::crypto::pwhash;
 
 use commandProcessor;
+use gameServer::GameServerState;
 
 struct LoginingClient{
     publicKeyB:     Box_PublicKey,
@@ -49,13 +50,14 @@ struct LoginingClient{
 }
 
 pub struct AdminSession{
-    adminKey:            String,
+    adminKey:       String,
     time:           time::Timespec,
     requestKey:     SecretBox_Key,
     requestNonce:   SecretBox_Nonce,
     responseKey:    SecretBox_Key,
     responseNonce:  SecretBox_Nonce,
-    pub news:           String,
+    pub news:       String,
+    pub gameServerState:Option<GameServerState>,
 }
 
 pub struct WebInterface{
@@ -406,6 +408,8 @@ impl WebInterface{
                 randombytes_into(&mut adminKey);
                 let adminKeyBase64=adminKey.to_base64(STANDARD);
 
+                let appData=webInterface.appData.upgrade().unwrap();
+
                 let adminSession=AdminSession{
                     adminKey:adminKeyBase64,
                     time:time::get_time(),
@@ -414,6 +418,7 @@ impl WebInterface{
                     responseKey:try!( SecretBox_Key::from_slice( &responseKeyBytes ).ok_or( "Can not decode response key") ),
                     responseNonce:try!( SecretBox_Nonce::from_slice( &responseNonceBytes ).ok_or( "Can not decode response nonce") ),
                     news:String::with_capacity(1024),
+                    gameServerState:Some( *appData.gameServerState.read().unwrap() ),
                 };
 
                 let adminKeyCipher=secretbox::seal(adminSession.adminKey.as_bytes(), &adminSession.responseNonce, &adminSession.responseKey);
@@ -505,13 +510,19 @@ impl WebInterface{
     fn readNews<'a>(&'a self) -> Result<String, &str> {
         match *self.adminSession.write().unwrap(){
             Some( ref mut adminSession )=>{
-                let response=if adminSession.news.len()>0 {
-                    let r=format!("admin key:{};\n{}", &adminSession.adminKey, &adminSession.news);
+                let mut response=format!("admin key:{};\n", &adminSession.adminKey);
+
+                match adminSession.gameServerState{
+                    Some( state ) =>
+                        response.push_str( &format!("game server state:{};\n", state.print()) ),
+                    None => {},
+                }
+                adminSession.gameServerState=None;
+
+                if adminSession.news.len()>0 {
+                    response.push_str( &adminSession.news );
                     adminSession.news.clear();
-                    r
-                }else{
-                    format!("admin key:{};\n", &adminSession.adminKey)
-                };
+                }
 
                 let responseCipher=secretbox::seal(response.as_bytes(), &adminSession.responseNonce, &adminSession.responseKey);
                 Ok(responseCipher.to_base64(STANDARD))

@@ -102,6 +102,8 @@ function readResponse(responseText){
     for(i=0;i<fields.length;i++){
         var field=fields[i];
 
+        var errorOccurred=false;
+
         var colonPos=field.indexOf(":");
         if( colonPos>0 ){
             var fieldName=field.slice(0, colonPos);
@@ -111,6 +113,35 @@ function readResponse(responseText){
                 adminKey=fieldValue;
             }else if( fieldName=="log" ){
                 printConsole(fieldValue);
+
+                if( errorOccurred ){
+                    document.getElementById("errorsList").value+=fieldValue+"\n";
+                }
+            }else if( fieldName=="game server state" ){
+                switch( fieldValue ){
+                    case "disactive":
+                        setServerButtonState( "start");
+                        break;
+                    case "starting":
+                        setServerButtonState( "process");
+                        break;
+                    case "working":
+                        setServerButtonState( "stop");
+                        break;
+                    case "stopping":
+                        setServerButtonState("process");
+                        break;
+                    case "error":
+                        setServerButtonState( "start");
+                        errorOccurred=true;
+                        document.getElementById("errorsList").value="";
+                        break;
+                }
+            }
+
+            if( errorOccurred ){
+                document.getElementById("errorsList").value+="\n\nSee console for details";
+                openErrorMenu( "Server error" );
             }
         }
     }

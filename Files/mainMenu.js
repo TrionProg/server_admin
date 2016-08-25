@@ -2,7 +2,7 @@ var mainMenuIsOpen=false;
 var consoleIsOpen=false;
 var logoutButtonIsOpen=false;
 
-var serverButtonState="run";
+var serverButtonState="start";
 
 function showLogoutButton(){
     if( !logoutButtonIsOpen ){
@@ -117,27 +117,21 @@ function hideConsole(){
 }
 
 function setServerButtonState( state ){
-    document.getElementById("serverButton_run").style.display="none";
+    document.getElementById("serverButton_start").style.display="none";
     document.getElementById("serverButton_process").style.display="none";
     document.getElementById("serverButton_stop").style.display="none";
 
     switch (state) {
-        case "run":
+        case "start":
             document.getElementById("serverButton").style.backgroundColor="#448eb5";
             document.getElementById("serverButton").style.borderColor="#eea87b";
-            document.getElementById("serverButton_run").style.display="block";
+            document.getElementById("serverButton_start").style.display="block";
 
             break;
         case "process":
             document.getElementById("serverButton").style.backgroundColor="#5b448d";
             document.getElementById("serverButton").style.borderColor="#c19d85";
             document.getElementById("serverButton_process").style.display="block";
-
-            var timer = setInterval(function() {
-                setServerButtonState( "stop" );
-
-                clearInterval(timer);
-            }, 5000);
 
             break;
         case "stop":
@@ -148,7 +142,7 @@ function setServerButtonState( state ){
             break;
     }
 
-    if( state=="run" ){
+    if( state=="start" ){
         document.getElementById("mapManagerButton").style.backgroundColor="#b1dadc";
         document.getElementById("mapManagerButton").style.borderColor="#eea87b";
 
@@ -175,7 +169,7 @@ function mainMenuButtonOver( buttonName ){
     switch (buttonName) {
         case "serverButton":
             switch (serverButtonState) {
-                case "run":
+                case "start":
                     document.getElementById("serverButton").style.backgroundColor="#1c506c";
                     break;
                 case "stop":
@@ -185,19 +179,19 @@ function mainMenuButtonOver( buttonName ){
 
             break;
         case "mapManagerButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("mapManagerButton").style.backgroundColor="#85aac0";
             }
 
             break;
         case "modManagerButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("modManagerButton").style.backgroundColor="#49d62e";
             }
 
             break;
         case "settingsButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("settingsButton").style.backgroundColor="#85aac0";
             }
 
@@ -209,7 +203,7 @@ function mainMenuButtonOut( buttonName ){
     switch (buttonName) {
         case "serverButton":
             switch (serverButtonState) {
-                case "run":
+                case "start":
                     document.getElementById("serverButton").style.backgroundColor="#448eb5";
                     break;
                 case "stop":
@@ -219,19 +213,19 @@ function mainMenuButtonOut( buttonName ){
 
             break;
         case "mapManagerButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("mapManagerButton").style.backgroundColor="#b1dadc";
             }
 
             break;
         case "modManagerButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("modManagerButton").style.backgroundColor="#a6dd6a";
             }
 
             break;
         case "settingsButton":
-            if( serverButtonState=="run" ){
+            if( serverButtonState=="start" ){
                 document.getElementById("settingsButton").style.backgroundColor="#c7d8e2";
             }
 
@@ -241,29 +235,30 @@ function mainMenuButtonOut( buttonName ){
 
 function serverButtonClick(){
     switch (serverButtonState) {
-        case "run":
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/gui:run server', true);
-            xhr.send();
+        case "start":
+            var jsonData=JSON.stringify({
+                adminKey:adminKey,
+                source:"gui",
+                commands:"start"
+            });
 
-            var timer = setInterval(function() {
-                setServerButtonState( "process" );
-
-                clearInterval(timer);
-            }, 1000);
+            requestQueue.push({
+                url:"/cmd",
+                data:jsonData,
+            });
 
             break;
         case "stop":
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', '/gui:stop server', true);
-            xhr.send();
+            var jsonData=JSON.stringify({
+                adminKey:adminKey,
+                source:"gui",
+                commands:"stop"
+            });
 
-            var timer = setInterval(function() {
-                setServerButtonState("run");
-                openErrorMenu( "Server error" );
-
-                clearInterval(timer);
-            }, 3000);
+            requestQueue.push({
+                url:"/cmd",
+                data:jsonData,
+            });
 
             break;
     }
