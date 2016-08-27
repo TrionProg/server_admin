@@ -22,6 +22,8 @@ use appData::AppData;
 use version::Version;
 use config;
 
+use curl::easy::Easy as CurlDownloader;
+
 pub struct ModDescription{
     name:String,
     version:Version,
@@ -216,48 +218,11 @@ pub struct ModManager{
     pub appData:Weak<AppData>,
     pub installedMods:RwLock< HashMap<String,Mod> >,
     pub activeMods:RwLock< Vec<String> >,
+    pub repositories:RwLock< Vec<String> >,
 }
 
 impl ModManager{
     pub fn initialize( appData:Arc<AppData> ) -> Result<(),String>{
-/*
-        let mut easy = Easy::new();
-        easy.url("https://www.rust-lang.org/").unwrap();
-        easy.write_function(|data| {
-            Ok(stdout().write(data).unwrap())
-        }).unwrap();
-        easy.perform().unwrap();
-
-        println!("RC:{}", easy.response_code().unwrap());
-
-        use std::process::{Command, Stdio};
-
-Command::new("yes")
-        //.arg("-l")
-        //.arg("-a")
-        .stdout(Stdio::null())
-        .spawn()
-        .expect("yes command failed to start");
-
-        use iron::crypto::digest::Digest;
-use iron::crypto::sha2::Sha256;
-
-// create a Sha256 object
-let mut hasher = Sha256::new();
-
-// write input message
-hasher.input_str("hello world");
-
-// read hash digest
-let hex = hasher.result_str();
-
-assert_eq!(hex,
-           concat!("b94d27b9934d3e08a52e52d7da7dabfa",
-                   "c484efe37a5380ee9088f7ace2efcde9"));
-
-
-*/
-
         //========================Installed mods========================
 
         let mut installedMods=HashMap::new();
@@ -319,11 +284,15 @@ assert_eq!(hex,
             Err( msg ) => return Err(format!("Can not decode file \"{}\" : {}", activeModsFileName, msg)),
         };
 
+        let mut repositories=Vec::new();
+        repositories.push(String::from("localhost:8080"));
+
         let modManager=Arc::new(
             ModManager{
                 appData:Arc::downgrade(&appData),
                 installedMods:RwLock::new(installedMods),
                 activeMods:RwLock::new(activeMods),
+                repositories:RwLock::new(repositories),
             }
         );
 
@@ -368,7 +337,7 @@ assert_eq!(hex,
                         for &(ref depModName, ref depModVersion) in m.description.dependencies.iter() {
                             match installedMods.get( depModName ){
                                 Some( ref m ) => {
-                                    if m.description.version.isNewer( depModVersion ) {
+                                    if m.description.version>=*depModVersion {
                                         activateMods.push_front( depModName.clone() );
                                     }else{
                                         outOfDatedMods.insert( depModName.clone() );
@@ -403,7 +372,157 @@ assert_eq!(hex,
         Ok(())
     }
 
-    pub fn installMod(&self, nameOfMod:&String) -> Result<(), String> {
+    fn downloadAndReadDescription(repURL:&String, modName:&String, modVersion:&Option<Version> ) -> Result<ModDescription, String>{
+        let mut requestURL=format!("{}/mods/description/{}",repURL,modName);
+        //let mut requestURL=format!("{}/mods/description/{}?gameVersion={}",&repositoryURL,&modName,GAME_VERSION.print());
+        match *modVersion {
+            Some( ref modVersion ) => requestURL.push_str(&format!("_modVersion={}",modVersion.print())),
+            None => {},
+        }
+
+        println!("{}",&requestURL);
+
+        let mut responseBytes=Vec::new();
+
+        let mut easy = CurlDownloader::new();
+
+        {
+            try!(easy.url(&requestURL).or( Err(String::from("Can not assign url")) ));
+
+            let mut transfer = easy.transfer();
+            transfer.write_function(|data| {
+                &responseBytes.extend_from_slice(data);
+                Ok(data.len())
+            });
+
+            try!(transfer.perform().or(Err(String::from("Can not perform"))));
+        }
+
+        {
+            let statusCode=easy.response_code().unwrap();
+            if statusCode!=200 {
+                return Err(format!("Can not download. Status : {}", statusCode));
+            }
+        }
+
+        let descriptionText=try!(String::from_utf8(responseBytes).or(Err(String::from("description is no valid UTF-8 file"))));
+
+        let modDescription=match ModDescription::read(&descriptionText){
+            Ok ( md ) => md,
+            Err( e ) => return Err(format!("Can not read description : {}", e)),
+        };
+
+        //check game version
+
+        match *modVersion {
+            Some( ref modVersion ) => {
+                if modDescription.version<*modVersion {
+                    return Err(format!("Version is old \"{}\"", modDescription.version.print()));
+                }
+            },
+            None => {},
+        }
+
+        Ok( modDescription )
+    }
+
+    pub fn installMod(&self, nameOfMod:&str) -> Result<(), String> {
+        let appData=self.appData.upgrade().unwrap();
+
+        //=======================Solve dependencies=========================
+
+        let mut installModList:VecDeque<(String, Option<Version>)> = VecDeque::new();
+        installModList.push_front( (String::from(nameOfMod), /*None*/Some(Version::parse( &String::from("0.1.2.0")).unwrap() )) );
+
+        let mut virtInstalledMods=HashMap::new();
+
+        {
+            let installedMods=self.installedMods.read().unwrap();
+
+            for (modName, modData) in (*installedMods).iter(){
+                virtInstalledMods.insert(modName.clone(), modData.description.version.clone());
+            }
+        }
+
+        loop{
+            let (modName, modVersion)=match installModList.pop_back(){
+                Some( mnv ) => mnv,
+                None => break,
+            };
+
+            let mut modDescription=None;
+
+            let repositories=self.repositories.read().unwrap();
+
+            for repositoryURL in (*repositories).iter() {
+                match ModManager::downloadAndReadDescription(repositoryURL, &modName, &modVersion) {
+                    Ok ( d ) => {
+                        modDescription=Some(d); break;
+                    },
+                    Err( e ) => {
+                        let versionStr=match modVersion{
+                            Some(ver) => ver.print(),
+                            None => String::from("compatible with game version"),
+                        };
+
+                        appData.log.print(format!("[INFO]rep:\"{}\", mod:\"{}\", ver:\"{}\" : {}", repositoryURL, &modName, versionStr, e));
+                    },
+                }
+            }
+
+            match modDescription {
+                Some( modDescription ) => {
+                    virtInstalledMods.insert(modName, modDescription.version.clone());
+
+                    for &(ref depName, ref depVersion) in modDescription.dependencies.iter() {
+                        match virtInstalledMods.get(depName) {
+                            Some( ref instDepVersion ) => {
+                                if *instDepVersion<depVersion {
+                                    installModList.push_front( (depName.clone(), Some( depVersion.clone()) ) );
+                                }
+                            },
+                            None => installModList.push_front( (depName.clone(), Some( depVersion.clone()) ) ),
+                        }
+                    }
+                },
+                None => {appData.log.print(format!("[ERROR]Can not download description for mod \"{}\"",&modName)); return Ok(());},//false
+            }
+        }
+
+        //=============================Installation==========================
+
+        appData.log.print( String::from("\nHere is solution:\n") );
+
+        let mut installModList=Vec::new();
+        {
+            let installedMods=self.installedMods.read().unwrap();
+
+            for (modName, modVersion) in virtInstalledMods.iter() {
+                match installedMods.get(modName) {
+                    Some( modData ) => {
+                        if modData.description.version<*modVersion {
+                            installModList.push((modName.clone(), modVersion.clone() ));
+                            appData.log.print( format!("Update mod \"{}\" to version \"{}\"",modName, modVersion.print()) );
+                        }
+                    },
+                    None => appData.log.print( format!("Install mod \"{}-{}\"",modName, modVersion.print()) ),
+                }
+            }
+        }
+
+        //ask
+        appData.log.print(String::from("Write Y to contunue or N to abort"));
+
+        /*
+        let mut easy = Easy::new();
+        easy.url("https://www.rust-lang.org/").unwrap();
+        easy.write_function(|data| {
+            Ok(stdout().write(data).unwrap())
+        }).unwrap();
+        easy.perform().unwrap();
+
+        println!("RC:{}", easy.response_code().unwrap());
+        */
         Ok(())
     }
 }

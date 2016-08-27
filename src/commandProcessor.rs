@@ -198,6 +198,11 @@ fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), Stri
 
                     Ok(())
                 },
+                "inst" => {
+                    appData.doModManager(|mm| mm.installMod("test"));
+
+                    Ok(())
+                },
                 _=>Err(format!("Unknown command: \"{}\" ", w )),
             }
         },

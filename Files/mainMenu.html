@@ -5,7 +5,7 @@
     <div id="mainMenuButtonsBox" class="mainMenuButtonsBox">
         <div id="serverButton" class="imgButton" style="left: 0px;">
             <div id="serverButton_start" class="imgButtonContent">
-                <div class="imgButtonImg" style="background-image:url(icon_run.png);"></div>
+                <div class="imgButtonImg" style="background-image:url(icon_start.png);"></div>
                 start server
             </div>
             <div id="serverButton_process" class="imgButtonContent">
@@ -40,7 +40,7 @@
 <script>
     document.getElementById("consoleCloseButton").onclick = function () { hideConsole(); };
     document.getElementById("consoleInput").onclick = function () { showConsole(); };
-    document.getElementById("logoutButton").onclick = function () { closeMainMenu(); openLoginMenu(); };
+    document.getElementById("logoutButton").onclick = function () { logoutStep1(); };
     document.getElementById("serverButton").onmouseover = function () { mainMenuButtonOver("serverButton"); };
     document.getElementById("serverButton").onmouseout = function () { mainMenuButtonOut("serverButton"); };
     document.getElementById("serverButton").onclick = function () { serverButtonClick(); };

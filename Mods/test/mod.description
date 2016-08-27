@@ -1,5 +1,0 @@
-"name" : "test" ,
-"version" : "0.1.2.0" ,
-"game version" : "0.0.2.1",
-"description" : "test mod",
-"dependencies" : [ "default-0.0.0.6"]

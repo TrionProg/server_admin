@@ -66,9 +66,11 @@ function ask(){
     if( requestQueue.length>0 ){
         var req=requestQueue.shift();
 
+        req.data.adminKey=adminKey;
+
         request={
             url:req.url,
-            data:sodium.crypto_secretbox_easy(req.data,requestNonce,requestKey,"base64")
+            data:sodium.crypto_secretbox_easy(JSON.stringify(req.data),requestNonce,requestKey,"base64")
         };
     }
 
@@ -78,6 +80,11 @@ function ask(){
 
     xhr.onreadystatechange = function() {
         if( xhr.readyState != 4 ) return;
+
+        if( request.url=="/logout" ){
+            logoutStep2();
+            return;
+        }
 
         if( xhr.status==200 ){
             readResponse(xhr.responseText);
@@ -89,6 +96,8 @@ function ask(){
             }else{
                 ask();
             }
+        }else{
+            logoutStep2();
         }
     }
 }

@@ -3,7 +3,7 @@
 extern crate rustc_serialize;
 extern crate iron;
 extern crate router;
-//extern crate curl;
+extern crate curl;
 extern crate zip;
 extern crate nanomsg;
 extern crate sodiumoxide;

@@ -237,12 +237,40 @@ function loginStep2(responseText) {
      loginPassword.style.backgroundColor="#73D962";
      loginPassword.style.borderColor="#1C8220";
 
-     var timer = setInterval(function() {
+     document.getElementById("loginPassword").value="";
+
+     var timer = setTimeout(function() {
          closeLoginMenu();
          openMainMenu();
-
-         clearInterval(timer);
      }, 1000);
 
      dialogTimer=setTimeout(function() {ask();}, 100);
  }
+
+function logoutStep1(){
+    var jsonData={};
+
+    requestQueue.push({
+        url:"/logout",
+        data:jsonData,
+    });
+}
+
+function logoutStep2(){
+    sessionKey="";
+    sessionNonce="";
+
+    answerKey="";
+    answerNonce="";
+
+    adminKey="";
+
+    document.getElementById("loginPassword").value="";
+    document.getElementById("consoleLog").value="";
+    consoleText="";
+    consoleTextLines=0;
+    document.getElementById("consoleInput").value="";
+
+    closeMainMenu();
+    openLoginMenu();
+}

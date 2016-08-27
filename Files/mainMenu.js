@@ -236,11 +236,10 @@ function mainMenuButtonOut( buttonName ){
 function serverButtonClick(){
     switch (serverButtonState) {
         case "start":
-            var jsonData=JSON.stringify({
-                adminKey:adminKey,
+            var jsonData={
                 source:"gui",
                 commands:"start"
-            });
+            };
 
             requestQueue.push({
                 url:"/cmd",
@@ -249,11 +248,10 @@ function serverButtonClick(){
 
             break;
         case "stop":
-            var jsonData=JSON.stringify({
-                adminKey:adminKey,
+            var jsonData={
                 source:"gui",
                 commands:"stop"
-            });
+            };
 
             requestQueue.push({
                 url:"/cmd",
@@ -270,14 +268,15 @@ function inputCommand( event ){
         document.getElementById("consoleInput").value="";
 
         if( input=="exit" ){
-            //document.getElementById("consoleLog").value+="No no. You can not stop admin server remotely.\nYou should use \"logout\" command to do you guess =)\n\n\
-            //If you really want to stop admin server, you need stop it by command line interface on host, kill command, or contact with host administration\n";
+            printConsole("No no. You can not stop admin server remotely.\nYou should use \"logout\" command to do you guess =)\n\n\
+            If you really want to stop admin server, you need stop it by command line interface on host, kill command, or contact with host administration\n");
+        }else if( input=="logout" ){
+            logoutStep1();
         }else{
-            var jsonData=JSON.stringify({
-                adminKey:adminKey,
+            var jsonData={
                 source:"console",
                 commands:input
-            });
+            };
 
             requestQueue.push({
                 url:"/cmd",

@@ -231,7 +231,7 @@ impl WebInterface{
         )) );
 
         let files=vec!["background.png",  "icon_map.png",  "icon_mod.png",
-                       "icon.png",  "icon_run.png",  "icon_settings.png",
+                       "icon.png",  "icon_start.png",  "icon_settings.png",
                        "icon_stop.png",  "icon_x.png"];
 
         for f in files.iter() {
@@ -294,6 +294,18 @@ impl WebInterface{
             }
         );
 
+        let router_webInterface=webInterface.clone();
+        router.post("/logout", move |r: &mut Request|
+            match WebInterface::logout(r,&router_webInterface) {
+                Ok ( _ ) =>
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::Ok, String::from("")) )),
+                Err( msg ) => {
+                    router_webInterface.appData.upgrade().unwrap().log.write(msg);
+                    Ok(Response::with( (router_webInterface.mimeTypes.text.clone(), status::BadRequest, String::from(msg)) ))
+                }
+            }
+        );
+
         let address=format!("localhost:{}",appData.serverConfig.server_adminPort);
         let listener=try!(Iron::new(router).http(address.as_str()));
 
@@ -307,7 +319,7 @@ impl WebInterface{
 
     fn randomU64() -> u64{
         use std::mem;
-        let mut a=[0;8];
+        let mut a=[0u8;8];
         randombytes_into(&mut a);
         unsafe{
             mem::transmute::<[u8; 8], u64>(a)
@@ -505,6 +517,37 @@ impl WebInterface{
         }
 
         webInterface.readNews()
+    }
+
+    fn logout<'a>( req: & mut Request, webInterface:&'a Arc< WebInterface > ) -> Result<(), &'a str> {
+        match *webInterface.adminSession.write().unwrap(){
+            Some( ref mut adminSession )=>{
+                #[derive(RustcEncodable, RustcDecodable)]
+                struct LogoutData{
+                    adminKey:String,
+                }
+
+                let data:LogoutData={
+                    let mut cipherDataBase64 = String::new();
+                    try!( req.body.read_to_string(&mut cipherDataBase64).or( Err("Can not read body") ));
+                    let cipherDataBytes=try!( cipherDataBase64.from_base64().or( Err("Can not decode cipher data") ) );
+
+                    let jsonDataBytes=try!( secretbox::open(&cipherDataBytes, &adminSession.requestNonce, &adminSession.requestKey).or( Err("Can not decode Data") ) );
+                    let jsonData=try!( String::from_utf8( jsonDataBytes).or( Err("CmdData is not valid UTF-8") ));
+
+                    try!( json::decode(&jsonData).or( Err("Can not decode Data")) )
+                };
+
+                try!( webInterface.checkAdminSession( adminSession, &data.adminKey ));
+
+                data
+            },
+            None =>
+                return Err("Not logined")
+        };
+
+        *webInterface.adminSession.write().unwrap()=None;
+        Ok(())
     }
 
     fn readNews<'a>(&'a self) -> Result<String, &str> {
