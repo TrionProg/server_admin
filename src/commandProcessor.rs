@@ -199,10 +199,33 @@ fn processCommand( appData:&Arc<AppData>, command:&Command ) -> Result< (), Stri
                     Ok(())
                 },
                 "inst" => {
-                    appData.doModManager(|mm| mm.installMod("test"));
+                    use version::Version;
+                    let mut mods=Vec::new();
+                    mods.push( (String::from("test"), Some(Version::parse( &String::from("0.1.2.0")).unwrap()) ) );
+                    appData.doModManager(|mm| mm.installMods(mods));
 
                     Ok(())
                 },
+                "down" => {
+                    use downloader::download;
+                    use std::collections::VecDeque;
+
+                    let mut files=VecDeque::new();
+                    files.push_front((String::from("localhost:80"),String::from("Default")));
+                    files.push_front((String::from("Rep1"),String::from("Test")));
+
+                    let mut repositories=Vec::new();
+                    repositories.push(String::from("localhost:80"));
+                    repositories.push(String::from("localhost:8080"));
+                    repositories.push(String::from("Rep3"));
+
+                    match download(appData, repositories, "/mods/", files ) {
+                        Ok(_) => println!("ok"),
+                        Err(_) => println!("err"),
+                    };
+
+                    Ok(())
+                }
                 _=>Err(format!("Unknown command: \"{}\" ", w )),
             }
         },

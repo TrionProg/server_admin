@@ -4,7 +4,7 @@ use std::error::Error;
 
 use rustc_serialize::json;
 
-use std::io::{stdout, Read};
+use std::io::{stdout, Read, Write};
 //use curl::easy::Easy;
 
 use std::collections::HashMap;
@@ -80,11 +80,13 @@ impl ModDescription {
 
 pub struct Mod{
     description:ModDescription,
+    pub fileName:String,
     pub isInstalled:bool,
     pub isActive:bool,
 }
 
 impl Mod{
+    /*
     fn readDescriptionFile( appData: &Arc<AppData>, descriptionFileName:&String ) -> Result<Mod, String>{
         let mut descriptionFile=match File::open(descriptionFileName.as_str()) {
             Ok( f ) => f,
@@ -104,25 +106,29 @@ impl Mod{
 
         Ok(Mod{
             description:modDescription,
+
             isInstalled:false,
             isActive:false,
         })
     }
+    */
 
     fn readInstalledModDescription( appData: &Arc<AppData>, modPath: PathBuf ) -> Result<Mod,String> {
         //=====================Mod Name========================
 
-        let modName=match modPath.file_name(){
+        let modFileName=match modPath.file_name(){
             Some( n )=>{
                 match n.to_str() {
                     Some( name ) => {
+                        /*
                         if name.ends_with(".zip") {
                             let mut n=String::from(name);
                             n.truncate(name.len()-4);
                             n
                         }else{
                             String::from(name)
-                        }
+                        }*/
+                        String::from(name)
                     }
                     None => return Err((format!("Bad name of mod file"))),
                 }
@@ -198,7 +204,7 @@ impl Mod{
 
         //====================Check==============================
 
-        if modDescription.name!=modName {
+        if !modFileName.starts_with(&modDescription.name) {
             return Err( format!("Mod \"{}\" has different names of its file and name in mod.description",modPath.display()));
         }
 
@@ -207,6 +213,7 @@ impl Mod{
         Ok(
             Mod{
                 description:modDescription,
+                fileName:modFileName.clone(),
                 isInstalled:true,
                 isActive:false,
             }
@@ -219,6 +226,7 @@ pub struct ModManager{
     pub installedMods:RwLock< HashMap<String,Mod> >,
     pub activeMods:RwLock< Vec<String> >,
     pub repositories:RwLock< Vec<String> >,
+    solution:RwLock<Option< Solution > >,
 }
 
 impl ModManager{
@@ -255,7 +263,7 @@ impl ModManager{
             return Err(modErrors);
         }
 
-        //========================Active mods===========================
+        //========================Activate mods===========================
 
         let activeModsFileName="activeMods.list";
 
@@ -293,6 +301,7 @@ impl ModManager{
                 installedMods:RwLock::new(installedMods),
                 activeMods:RwLock::new(activeMods),
                 repositories:RwLock::new(repositories),
+                solution:RwLock::new(None),
             }
         );
 
@@ -373,6 +382,7 @@ impl ModManager{
     }
 
     fn downloadAndReadDescription(repURL:&String, modName:&String, modVersion:&Option<Version> ) -> Result<ModDescription, String>{
+        //================================Make URL===========================
         let mut requestURL=format!("{}/mods/description/{}",repURL,modName);
         //let mut requestURL=format!("{}/mods/description/{}?gameVersion={}",&repositoryURL,&modName,GAME_VERSION.print());
         match *modVersion {
@@ -380,7 +390,7 @@ impl ModManager{
             None => {},
         }
 
-        println!("{}",&requestURL);
+        //================================Download=============================
 
         let mut responseBytes=Vec::new();
 
@@ -405,6 +415,8 @@ impl ModManager{
             }
         }
 
+        //================================To UTF-8===========================
+
         let descriptionText=try!(String::from_utf8(responseBytes).or(Err(String::from("description is no valid UTF-8 file"))));
 
         let modDescription=match ModDescription::read(&descriptionText){
@@ -412,7 +424,9 @@ impl ModManager{
             Err( e ) => return Err(format!("Can not read description : {}", e)),
         };
 
-        //check game version
+        //================================Check==============================
+
+        //check game version,name
 
         match *modVersion {
             Some( ref modVersion ) => {
@@ -426,13 +440,16 @@ impl ModManager{
         Ok( modDescription )
     }
 
-    pub fn installMod(&self, nameOfMod:&str) -> Result<(), String> {
+    pub fn installMods(&self, modList:Vec<(String,Option<Version>)>) -> Result<(), String> {
         let appData=self.appData.upgrade().unwrap();
 
         //=======================Solve dependencies=========================
 
         let mut installModList:VecDeque<(String, Option<Version>)> = VecDeque::new();
-        installModList.push_front( (String::from(nameOfMod), /*None*/Some(Version::parse( &String::from("0.1.2.0")).unwrap() )) );
+        for &(ref modName, ref modVersion) in modList.iter(){
+            installModList.push_front( (modName.clone(), modVersion.clone() ) );
+        }
+        //installModList.push_front( (String::from(nameOfMod), /*None*/Some(Version::parse( &String::from("0.1.2.0")).unwrap() )) );
 
         let mut virtInstalledMods=HashMap::new();
 
@@ -489,11 +506,10 @@ impl ModManager{
             }
         }
 
-        //=============================Installation==========================
+        //=============================Ask about solution==========================
 
-        appData.log.print( String::from("\nHere is solution:\n") );
+        let mut solutionAction=Vec::new();
 
-        let mut installModList=Vec::new();
         {
             let installedMods=self.installedMods.read().unwrap();
 
@@ -501,28 +517,114 @@ impl ModManager{
                 match installedMods.get(modName) {
                     Some( modData ) => {
                         if modData.description.version<*modVersion {
-                            installModList.push((modName.clone(), modVersion.clone() ));
-                            appData.log.print( format!("Update mod \"{}\" to version \"{}\"",modName, modVersion.print()) );
+                            solutionAction.push((SolutionAction::Update, modName.clone(), modVersion.clone() ));
                         }
                     },
-                    None => appData.log.print( format!("Install mod \"{}-{}\"",modName, modVersion.print()) ),
+                    None => solutionAction.push((SolutionAction::Install, modName.clone(), modVersion.clone() )),
                 }
             }
         }
 
+        *self.solution.write().unwrap()=Some(Solution::new(solutionAction));
+
+        match self.processSolution(){
+            Ok ( _ ) => {},
+            Err( e ) => appData.log.print(e),
+        }
+
         //ask
-        appData.log.print(String::from("Write Y to contunue or N to abort"));
+        //appData.log.print(String::from("Write Y to contunue or N to abort"));
 
-        /*
-        let mut easy = Easy::new();
-        easy.url("https://www.rust-lang.org/").unwrap();
-        easy.write_function(|data| {
-            Ok(stdout().write(data).unwrap())
-        }).unwrap();
-        easy.perform().unwrap();
-
-        println!("RC:{}", easy.response_code().unwrap());
-        */
         Ok(())
+    }
+
+    fn processSolution(&self) -> Result<(), String> {
+        let appData=self.appData.upgrade().unwrap();
+        let solution=self.solution.read().unwrap();
+
+        match *solution{
+            Some( ref solution ) => {
+                appData.log.print( solution.print() );
+                //сначала должны скачаться файлы во временный каталог
+
+                //===============================CREATE BACKUP DIRECTORY=========================
+                let backupDirectoryName=format!("backups/backup");
+                {
+                    let solutionText=solution.print();
+
+                    try!( fs::create_dir(&backupDirectoryName).or( Err(String::from("Can not create backup directory")) ));
+
+                    let mut file=try!( File::create( &format!("{}/actions.txt",backupDirectoryName) ).or( Err(String::from("Can not create actions.txt file"))) );
+
+                    try!( file.write_all( solutionText.as_bytes() ).or( Err(String::from("Can not write to file actions.txt"))) );
+
+
+                }
+
+                //==============================MOVE FILES TO BACKUP DIRECTORY==================
+                {
+                    let installedMods=self.installedMods.read().unwrap();
+
+                    for &(ref solutionAction, ref modName, ref modVersion) in solution.actions.iter(){
+                        match *solutionAction {
+                            SolutionAction::Update | SolutionAction::Remove => {
+                                match installedMods.get(modName) {
+                                    Some( modData ) => {
+                                        try!(fs::rename(
+                                            &format!("Mods/{}", modData.fileName),
+                                            &format!("{}/{}", backupDirectoryName, modData.fileName))
+                                        .or(Err(format!("Can not move file  \"{}\"",modData.fileName ))));
+                                    },
+                                    None => return Err( format!("Mod \"{}\" does not exists", modName) ),
+                                }
+                            },
+                            _=>{},
+                        }
+                    }
+                }
+            },
+            None=>{}
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(PartialEq, Eq)]
+enum SolutionAction{
+    Install,
+    Update,
+    Remove,
+}
+
+impl SolutionAction{
+    fn print<'a>(&'a self) -> &'a str{
+        match *self{
+            SolutionAction::Install => "install",
+            SolutionAction::Update => "update",
+            SolutionAction::Remove => "remove",
+        }
+    }
+}
+
+struct Solution{
+    actions:Vec< (SolutionAction, String, Version) >,
+}
+
+impl Solution{
+    fn new(actions:Vec< (SolutionAction, String, Version) >) -> Solution {
+        Solution{
+            actions:actions,
+        }
+    }
+
+    fn print(&self) -> String {
+        let mut solutionText=String::with_capacity(1024);
+
+        for &(ref solutionAction, ref modName, ref modVersion) in self.actions.iter(){
+            solutionText.push_str( &format!("{} \"{}-{}\"\n", solutionAction.print(), modName, modVersion.print() ));
+        }
+
+        solutionText
     }
 }

@@ -6,14 +6,25 @@
 [INFO]Mods have been checked and activated
 [INFO]Starting web interface
 [INFO]Web interface is ready, connect to localhost:1945 by your browser
-[INFO]rep:"localhost:8080", mod:"default", ver:"0.0.1.5" : Can not download. Status : 404
-[ERROR]Can not download description for mod "default"
-
-Here is solution:
-
-Install mod "test-0.1.3.8"
-Update mod "default" to version "0.0.1.5"
-Install mod "megamod-0.1.2.0"
-Write Y to contunue or N to abort
+[INFO]Can not download file from "Rep1/mods/Test" : Can not perform, trying to find it at other repositories
+[INFO]localhost:80/mods/Test:Cann ot download the file : Can not perform
+[INFO]Can not download file from "localhost:80/mods/Default" : Can not perform, trying to find it at other repositories
+[INFO]localhost:80/mods/Default:Cann ot download the file : Can not perform
+[INFO]localhost:8080/mods/Test:Cann ot download the file : Can not download. Status : 404
+[INFO]Rep3/mods/Test:Cann ot download the file : Can not perform
+[ERROR]Can not download file "Test"
+[INFO]Can not download file from "Rep1/mods/Test" : Can not perform, trying to find it at other repositories
+[INFO]Can not download file from "localhost:80/mods/Default" : Can not perform, trying to find it at other repositories
+[INFO]localhost:80/mods/Test:Cann ot download the file : Can not perform
+[INFO]localhost:80/mods/Default:Cann ot download the file : Can not perform
+[ERROR]Unknown command: "[A" 
+[A
+[INFO]Can not download file from "Rep1/mods/Test" : Can not perform, trying to find it at other repositories
+[INFO]Can not download file from "localhost:80/mods/Default" : Can not perform, trying to find it at other repositories
+[INFO]localhost:80/mods/Test:Cann ot download the file : Can not perform
+[INFO]localhost:80/mods/Default:Cann ot download the file : Can not perform
+[INFO]localhost:8080/mods/Default:Cann ot download the file : Can not download. Status : 404
+[INFO]Rep3/mods/Default:Cann ot download the file : Can not perform
+[ERROR]Can not download file "Default"
 [INFO]Closing web interface
 [INFO]Web interface has been closed

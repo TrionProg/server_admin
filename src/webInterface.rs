@@ -306,6 +306,7 @@ impl WebInterface{
             }
         );
 
+        //let address=format!("192.168.1.41:{}",appData.serverConfig.server_adminPort);
         let address=format!("localhost:{}",appData.serverConfig.server_adminPort);
         let listener=try!(Iron::new(router).http(address.as_str()));
 

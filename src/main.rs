@@ -20,6 +20,8 @@ mod serverConfig;
 mod appData;
 mod version;
 mod modManager;
+mod downloader;
+
 
 mod consoleInterface;
 mod webInterface;
