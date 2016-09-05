@@ -225,7 +225,6 @@ pub struct ModManager{
     pub appData:Weak<AppData>,
     pub installedMods:RwLock< HashMap<String,Mod> >,
     pub activeMods:RwLock< Vec<String> >,
-    pub repositories:RwLock< Vec<String> >,
     solution:RwLock<Option< Solution > >,
 }
 
@@ -292,15 +291,11 @@ impl ModManager{
             Err( msg ) => return Err(format!("Can not decode file \"{}\" : {}", activeModsFileName, msg)),
         };
 
-        let mut repositories=Vec::new();
-        repositories.push(String::from("localhost:8080"));
-
         let modManager=Arc::new(
             ModManager{
                 appData:Arc::downgrade(&appData),
                 installedMods:RwLock::new(installedMods),
                 activeMods:RwLock::new(activeMods),
-                repositories:RwLock::new(repositories),
                 solution:RwLock::new(None),
             }
         );
@@ -457,7 +452,7 @@ impl ModManager{
             let installedMods=self.installedMods.read().unwrap();
 
             for (modName, modData) in (*installedMods).iter(){
-                virtInstalledMods.insert(modName.clone(), modData.description.version.clone());
+                virtInstalledMods.insert(modName.clone(), (String::from("localhost"), modData.description.version.clone()) );
             }
         }
 
@@ -467,14 +462,14 @@ impl ModManager{
                 None => break,
             };
 
-            let mut modDescription=None;
+            let mut modDescriptionAndRepURL=None;
 
-            let repositories=self.repositories.read().unwrap();
+            let repositories=appData.serverConfig.repositories.read().unwrap();
 
             for repositoryURL in (*repositories).iter() {
                 match ModManager::downloadAndReadDescription(repositoryURL, &modName, &modVersion) {
                     Ok ( d ) => {
-                        modDescription=Some(d); break;
+                        modDescriptionAndRepURL=Some( (d,repositoryURL.clone()) ); break;
                     },
                     Err( e ) => {
                         let versionStr=match modVersion{
@@ -487,14 +482,14 @@ impl ModManager{
                 }
             }
 
-            match modDescription {
-                Some( modDescription ) => {
-                    virtInstalledMods.insert(modName, modDescription.version.clone());
+            match modDescriptionAndRepURL {
+                Some( (modDescription, repURL) ) => {
+                    virtInstalledMods.insert( modName, (repURL, modDescription.version.clone()) );
 
                     for &(ref depName, ref depVersion) in modDescription.dependencies.iter() {
                         match virtInstalledMods.get(depName) {
-                            Some( ref instDepVersion ) => {
-                                if *instDepVersion<depVersion {
+                            Some( &( _ , ref instDepVersion) ) => {
+                                if *instDepVersion<*depVersion {
                                     installModList.push_front( (depName.clone(), Some( depVersion.clone()) ) );
                                 }
                             },
@@ -513,14 +508,14 @@ impl ModManager{
         {
             let installedMods=self.installedMods.read().unwrap();
 
-            for (modName, modVersion) in virtInstalledMods.iter() {
+            for (modName, &(ref repURL, ref modVersion) ) in virtInstalledMods.iter() {
                 match installedMods.get(modName) {
                     Some( modData ) => {
                         if modData.description.version<*modVersion {
-                            solutionAction.push((SolutionAction::Update, modName.clone(), modVersion.clone() ));
+                            solutionAction.push((SolutionAction::Update, repURL.clone(), modName.clone(), modVersion.clone() ));
                         }
                     },
-                    None => solutionAction.push((SolutionAction::Install, modName.clone(), modVersion.clone() )),
+                    None => solutionAction.push((SolutionAction::Install, repURL.clone(), modName.clone(), modVersion.clone() )),
                 }
             }
         }
@@ -565,7 +560,7 @@ impl ModManager{
                 {
                     let installedMods=self.installedMods.read().unwrap();
 
-                    for &(ref solutionAction, ref modName, ref modVersion) in solution.actions.iter(){
+                    for &(ref solutionAction, ref repURL, ref modName, ref modVersion) in solution.actions.iter(){
                         match *solutionAction {
                             SolutionAction::Update | SolutionAction::Remove => {
                                 match installedMods.get(modName) {
@@ -608,11 +603,11 @@ impl SolutionAction{
 }
 
 struct Solution{
-    actions:Vec< (SolutionAction, String, Version) >,
+    actions:Vec< (SolutionAction, String, String, Version) >,
 }
 
 impl Solution{
-    fn new(actions:Vec< (SolutionAction, String, Version) >) -> Solution {
+    fn new(actions:Vec< (SolutionAction, String, String, Version) >) -> Solution {
         Solution{
             actions:actions,
         }
@@ -621,7 +616,7 @@ impl Solution{
     fn print(&self) -> String {
         let mut solutionText=String::with_capacity(1024);
 
-        for &(ref solutionAction, ref modName, ref modVersion) in self.actions.iter(){
+        for &(ref solutionAction, ref repURL, ref modName, ref modVersion) in self.actions.iter(){
             solutionText.push_str( &format!("{} \"{}-{}\"\n", solutionAction.print(), modName, modVersion.print() ));
         }
 

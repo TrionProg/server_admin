@@ -7,17 +7,19 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
+use std::sync::{Mutex,RwLock,Arc,Barrier,Weak};
+
 use config;
 
 pub struct ServerConfig{
     pub server_adminPort:u16,
     pub server_gamePort:u16,
+    pub server_address:String,
+    pub repositories:RwLock<Vec<String>>,
 }
 
 impl ServerConfig{
     pub fn read() -> Result<ServerConfig, String> {
-        //let a= ServerConfig{server_adminPort:1945, server_gamePort:1941};
-        //println!("{}",json::encode(&a).unwrap());
 
         let mut configFile=match File::open("serverConfig.cfg") {
             Ok( cf ) => cf,
@@ -31,10 +33,23 @@ impl ServerConfig{
         }
 
         let serverConfig: ServerConfig = match config::parse( &content, |root| {
+
             Ok(
                 ServerConfig{
                     server_adminPort:try!(root.getStringAs::<u16>("server.adminPort")),
                     server_gamePort:try!(root.getStringAs::<u16>("server.gamePort")),
+                    server_address:try!(root.getString("server.address")).clone(),
+                    repositories:{
+                        let repositoriesList=try!(root.getList("repositories"));
+
+                        let mut repositories=Vec::new();
+
+                        for repURL in repositoriesList.iter() {
+                            repositories.push(try!(repURL.getString()).clone());
+                        }
+
+                        RwLock::new(repositories)
+                    },
                 }
             )
         }){
